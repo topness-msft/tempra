@@ -5,6 +5,7 @@
  */
 const OUTBOX_KEY = 'tempra.outbox.v1';
 const CACHE_KEY = 'tempra.cache.v1';
+const GRAVE_KEY = 'tempra.deleted.v1';
 
 const read = <T>(key: string, fallback: T): T => {
   try {
@@ -77,5 +78,29 @@ export const cache = {
   get: <T>(fallback: T): T => read<T>(CACHE_KEY, fallback),
   set: (value: unknown): void => {
     write(CACHE_KEY, value);
+  },
+};
+
+/**
+ * Ids this device has deleted.
+ *
+ * The queued delete is not enough on its own. It leaves the outbox the instant
+ * it succeeds, and a `/api/state` fetch that was already in flight can still be
+ * carrying the flash — so between the two, nothing is subtracting it and the
+ * row the user deleted comes back on screen. These headstones outlive that gap,
+ * and are cleared only once the server's own view agrees the flash is gone.
+ *
+ * Persisted, because the gap can span a reload.
+ */
+export const grave = {
+  all: (): string[] => read<string[]>(GRAVE_KEY, []),
+  add: (id: string): void => {
+    const list = grave.all();
+    if (!list.includes(id)) write(GRAVE_KEY, [...list, id]);
+  },
+  forget: (ids: string[]): void => {
+    if (ids.length === 0) return;
+    const keep = grave.all().filter((id) => !ids.includes(id));
+    write(GRAVE_KEY, keep);
   },
 };

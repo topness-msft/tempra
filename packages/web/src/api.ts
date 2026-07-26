@@ -1,6 +1,6 @@
 import type { Flash } from '@tempra/shared';
 import { durationMinutes } from '@tempra/shared';
-import { outbox, cache, type PendingOp } from './storage.js';
+import { outbox, cache, grave, type PendingOp } from './storage.js';
 
 /** A flash that may not have reached the server yet. */
 export type PendingFlash = Flash & { pending?: boolean };
@@ -64,6 +64,15 @@ export const fetchState = async (): Promise<AppState> => {
   if (!res.ok) throw new Error(`state ${res.status}`);
   const state = (await res.json()) as AppState;
   cache.set(state);
+  // Anything we buried that the server no longer mentions is genuinely gone, so
+  // the headstone has done its job and can be cleared. Keeping them forever
+  // would eventually hide a flash that legitimately came back — a restored
+  // backup, say — behind a deletion from months earlier.
+  grave.forget(
+    grave
+      .all()
+      .filter((id) => state.active?.id !== id && !state.recent.some((f) => f.id === id)),
+  );
   return state;
 };
 
@@ -142,7 +151,8 @@ export const pendingCount = (): number => outbox.size();
  */
 export const projectState = (base: AppState): AppState => {
   const ops = outbox.all();
-  if (ops.length === 0) return base;
+  const buried = grave.all();
+  if (ops.length === 0 && buried.length === 0) return base;
 
   let active: PendingFlash | null = base.active;
   let recent: PendingFlash[] = [...base.recent];
@@ -212,6 +222,12 @@ export const projectState = (base: AppState): AppState => {
     }
   }
 
+  // Applied last: a deletion outranks every other queued edit to the same flash.
+  if (buried.length > 0) {
+    if (active && buried.includes(active.id)) active = null;
+    recent = recent.filter((f) => !buried.includes(f.id));
+  }
+
   return { ...base, active, recent };
 };
 
@@ -261,6 +277,19 @@ export const deleteFlash = async (flashId: string): Promise<boolean> => {
     return true;
   }
   return enqueue({ id: newId(), kind: 'delete', at: new Date().toISOString(), flashId });
+};
+
+/**
+ * Record that a flash has been deleted on this device.
+ *
+ * Must be called alongside `deleteFlash`, not instead of it: this hides the row,
+ * the queued op is what actually reaches the server. Two separate jobs, because
+ * the queued op stops existing the moment it flushes and something has to keep
+ * the row hidden across the window where a `/api/state` response issued moments
+ * earlier is still on its way back carrying the flash.
+ */
+export const forgetFlash = (flashId: string): void => {
+  grave.add(flashId);
 };
 
 export const fetchHistory = async (limit = 200): Promise<Flash[]> => {

@@ -248,7 +248,7 @@ a.btn {
  * swipe only *reveals*; deleting always takes a second, aimed tap.
  */
 .swipe {
-  --act-w: 96px;
+  --act-w: 78px;
   position: relative;
   overflow: hidden;
   /* Hands vertical scrolling to the browser and horizontal drags to us, so the
@@ -261,33 +261,50 @@ a.btn {
   inset: 0 0 0 auto;
   width: var(--act-w);
   display: flex;
+  align-items: center;
+  justify-content: center;
   /* Sits after the row in the DOM so that tab order reaches the entry's own
      controls first, which without this would also paint it on top of the row. */
   z-index: 0;
 }
 
+/*
+ * A roundel, not a slab. The right edge of every row is a small sage pill, and
+ * a full-height rectangle of berry arriving next to one is a different design
+ * language shouting over the top of it. A disc is the same shape family and the
+ * same visual weight, so what the swipe uncovers reads as belonging to the row
+ * rather than as a warning panel bolted to it.
+ *
+ * Unlabelled deliberately: the trash glyph on berry after a leftward swipe is
+ * about as unambiguous as interface language gets, the accessible name carries
+ * the exact time for anyone who needs it, and a six second undo sits behind it.
+ */
 .swipe-actions .del {
-  flex: 1;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  padding: 0;
   border: 0;
-  margin: 6px 0 7px;
-  border-radius: 14px;
-  background: linear-gradient(150deg, var(--berry), #8d2f4f);
+  border-radius: 999px;
+  background: linear-gradient(140deg, var(--berry), var(--rose));
   color: #fff;
-  font-family: var(--sans);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 3px 10px rgb(154 45 79 / 0.28);
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.18s;
+}
+
+.swipe-actions .del:active {
+  transform: scale(0.92);
+  box-shadow: 0 1px 4px rgb(154 45 79 / 0.3);
 }
 
 .swipe-actions .del svg {
-  width: 21px;
-  height: 21px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -318,9 +335,14 @@ a.btn {
   transform: translateX(calc(-1 * var(--act-w)));
 }
 
-/* While a finger is down the row must track it exactly, with no easing. */
+/* While a finger is down the row must track it exactly, with no easing. Text
+   selection is suppressed only for the duration of the drag: dragging across a
+   row otherwise highlights the note under the finger, and a note is something
+   worth being able to select and copy the rest of the time. */
 .swipe.dragging .entry {
   transition: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .toast.has-act {

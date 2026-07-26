@@ -52,6 +52,15 @@ test('swiping a row reveals delete, and deleting removes it', async ({ page }) =
       timeout: 15_000,
     })
     .toBe(0);
+
+  // And the row must still be gone *after* that write lands. Asserting only
+  // before it is what let a version ship where the queued delete flushed and
+  // left the outbox, so nothing was subtracting it any more and the row came
+  // back — the cached server view still listed it. A later refresh does hide it
+  // again, but by then the user has watched the thing they deleted return.
+  await page.waitForTimeout(1500);
+  await expect(page.locator('.swipe')).toHaveCount(0);
+  await expect(page.locator('.empty-note')).toBeVisible();
 });
 
 test('undo puts the flash back and nothing is ever sent', async ({ page }) => {

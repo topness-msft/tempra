@@ -17,6 +17,7 @@ import {
   endFlash,
   fetchState,
   flushOutbox,
+  forgetFlash,
   login,
   pendingCount,
   startFlash,
@@ -161,7 +162,7 @@ const UNDO_WINDOW_MS = 6000;
 const deleting = new Map<string, number>();
 
 /** How many pixels of delete button a swipe uncovers. Matches --act-w. */
-const ACTION_W = 96;
+const ACTION_W = 78;
 /** The row currently swiped open. Only ever one. */
 let swipeOpenId: string | null = null;
 
@@ -506,7 +507,7 @@ const entryHtml = (f: PendingFlash): string => {
       <div class="swipe-actions">
         <button class="del" type="button" data-del="${f.id}"
           aria-label="Delete the flash at ${esc(clock(f.startedAt))}">
-          <svg aria-hidden="true"><use href="#i-trash"/></svg>Delete
+          <svg aria-hidden="true"><use href="#i-trash"/></svg>
         </button>
       </div>
     </div>
@@ -854,14 +855,16 @@ const confirmEnd = async (): Promise<void> => {
 
 /** Actually send the delete. Only reached once the undo window has closed. */
 const commitDelete = (id: string): void => {
-  // Nothing may await between forgetting the local hold and queueing the write,
-  // or a render in the gap would flash the row back onto the screen.
+  // Nothing may await between releasing the undo hold and burying the id: the
+  // hold is the only thing keeping the row off screen until the headstone takes
+  // over, and a render in the gap would put it back.
   deleting.delete(id);
-  void deleteFlash(id).then(() => {
-    recompute();
-    syncDraftToActive();
-    render();
-  });
+  forgetFlash(id);
+  recompute();
+  syncDraftToActive();
+  render();
+
+  void deleteFlash(id);
 };
 
 const beginDelete = (id: string): void => {
@@ -899,6 +902,7 @@ window.addEventListener('pagehide', () => {
   for (const [id, timer] of deleting) {
     window.clearTimeout(timer);
     deleting.delete(id);
+    forgetFlash(id);
     void deleteFlash(id);
   }
 });

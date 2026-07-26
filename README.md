@@ -44,6 +44,13 @@ therefore a real cancellation rather than a re-creation — restoring a deleted
 flash by logging it again would give it a new identity and, because starting a
 flash supersedes the running one, could quietly close whatever is happening now.
 
+Once the window closes the id is written to a small persistent tombstone list.
+The queued delete alone is not enough to keep the row off screen: it leaves the
+outbox the instant it succeeds, and a `/api/state` response that was already in
+flight can still be carrying the flash — so without the tombstone the record
+reappears seconds after being deleted. Tombstones are cleared as soon as the
+server's own view agrees the flash is gone.
+
 ## Setup guides
 
 - [Logging a flash from iOS](docs/ios-shortcut.md) — Shortcuts, Siri, Lock Screen
