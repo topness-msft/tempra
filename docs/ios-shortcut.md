@@ -213,6 +213,60 @@ this document. Use the app's **Day** tab, which writes to the outbox.
 
 ---
 
+## 7. Making the symptom shortcuts work by voice
+
+The app is the primary way to record symptoms. Voice exists for the moment when
+noticing and opening the app are two different amounts of effort — you register
+that your ears have been ringing all morning while your hands are full.
+
+**The shortcut's name is the sentence.** Siri has no understanding of this app;
+it matches what you say against shortcut *titles*. So a shortcut named `Log
+tinnitus` is what makes "Hey Siri, log tinnitus" a sentence Siri can act on.
+Naming it `Tinnitus check-in` means you have to say *that* instead.
+
+That single fact decides the whole design: **build one shortcut per symptom**,
+named `Log <symptom>`, and only for the two or three that actually recur. All
+ten is a chore that earns nothing — the rest belong to the Day tab.
+
+The interaction is then two utterances:
+
+```
+You    Hey Siri, log tinnitus.
+Siri   How bad? Mild, moderate, or severe.
+You    Moderate.
+Siri   Logged tinnitus — moderate — for today.
+```
+
+To get that spoken confirmation, end the shortcut with **Show Result** and text
+along the lines of `Logged tinnitus — [severity] — for today.` Run hands-free
+Siri reads it aloud; run from the Home Screen it's a banner. Without it you get
+Siri's flat "Done", which tells you a shortcut ran but not what was written.
+
+### Two builds to avoid, and why
+
+**A single "Log symptom" shortcut that asks which one.** It's the obvious
+economy — one shortcut instead of three — and it's the wrong shape for voice.
+Choose from Menu is read *aloud*, so Siri recites all ten symptoms, eight to ten
+seconds, before you can answer. A menu is nearly free on a screen and expensive
+in the ear. If you want this build anyway, put it on the Home Screen widget
+where the menu is a tap rather than a recital.
+
+**Dictating the symptom name via Ask for Input → Text.** It sounds like the
+natural fix for the recital problem, and dictation is the thing that fails:
+"tinnitus" comes back as "tinnitis" or "tenetis" often enough that you'd need an
+If/else chain per spelling, and you find out it failed only when the day looks
+empty later. A menu can only return words Siri already has. Constraining the
+vocabulary is the point.
+
+### Saying it twice is safe
+
+A check-in is keyed on the date and written with PATCH, so repeating the phrase
+corrects the answer rather than logging a second one. Say "log tinnitus" and
+answer *mild*, then reconsider an hour later and answer *severe*, and the day
+holds severe — with everything else recorded that day untouched.
+
+---
+
 ## Troubleshooting
 
 | What you see | What it means |
