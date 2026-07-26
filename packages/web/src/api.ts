@@ -32,7 +32,15 @@ export class Unauthorized extends Error {}
 const request = async (url: string, init?: RequestInit): Promise<Response> => {
   const res = await fetch(url, {
     ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      // Only declare a JSON body when there is one. Announcing JSON on a
+      // bodyless request (DELETE, GET) makes Fastify reject it as an empty JSON
+      // body with a 400 — and flushOne reads any 4xx as "the server will never
+      // accept this", so the queued operation is dropped without a trace. That
+      // is how deleting a flash silently did nothing.
+      ...(init?.body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...(init?.headers ?? {}),
+    },
   });
   if (res.status === 401) throw new Unauthorized('unauthorized');
   return res;

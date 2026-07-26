@@ -239,6 +239,126 @@ a.btn {
   color: var(--plum-soft);
 }
 
+/* ---------- swipe to delete ---------- */
+
+/*
+ * The row slides left to uncover a delete button. It is deliberately NOT a
+ * full-swipe-commits gesture: this is a medical record being scrolled one-handed
+ * at 3am, where a horizontal wobble during a vertical scroll is routine. The
+ * swipe only *reveals*; deleting always takes a second, aimed tap.
+ */
+.swipe {
+  --act-w: 96px;
+  position: relative;
+  overflow: hidden;
+  /* Hands vertical scrolling to the browser and horizontal drags to us, so the
+     list never feels sticky while being scrolled. */
+  touch-action: pan-y;
+}
+
+.swipe-actions {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: var(--act-w);
+  display: flex;
+  /* Sits after the row in the DOM so that tab order reaches the entry's own
+     controls first, which without this would also paint it on top of the row. */
+  z-index: 0;
+}
+
+.swipe-actions .del {
+  flex: 1;
+  border: 0;
+  margin: 6px 0 7px;
+  border-radius: 14px;
+  background: linear-gradient(150deg, var(--berry), #8d2f4f);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.swipe-actions .del svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Opaque, because it slides over the delete button. This is the panel's
+   translucent white already composited onto the cream page. */
+.swipe .entry {
+  position: relative;
+  z-index: 1;
+  background: #fffdfb;
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The row is no longer its parent's last child now that the actions layer sits
+   beside it, so the day group's final divider has to be removed from here. */
+.daygroup .swipe:last-child .entry {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.swipe.open .entry,
+/* Keyboard and VoiceOver users never perform the gesture, so focusing the
+   delete button opens the row for them instead. */
+.swipe:has(.del:focus-visible) .entry {
+  transform: translateX(calc(-1 * var(--act-w)));
+}
+
+/* While a finger is down the row must track it exactly, with no easing. */
+.swipe.dragging .entry {
+  transition: none;
+}
+
+.toast.has-act {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 8px;
+}
+
+/* "Deleted 11:32 AM" reads as one phrase; letting it break across lines makes
+   the toast look like an error rather than a receipt. */
+.toast.has-act > span {
+  white-space: nowrap;
+}
+
+.toast-act {
+  border: 0;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+/* A swipe leaves no trace on screen, so it has to be said out loud once. */
+.swipehint {
+  margin: 14px 4px 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--plum-soft);
+  opacity: 0.75;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -13,6 +13,7 @@ import sprite from './_sprite.html?raw';
 import {
   cachedState,
   projectState,
+  deleteFlash,
   endFlash,
   fetchState,
   flushOutbox,
@@ -143,6 +144,27 @@ let authed = true;
 let online = navigator.onLine;
 let viewing: Flash | null = null;
 
+/**
+ * Deleting is deferred rather than undone.
+ *
+ * A server delete is permanent, and "undo" by re-creating would be a lie: the
+ * flash would come back with a new id, a new created_at, and — because starting
+ * a flash supersedes the running one — could quietly close whatever is active
+ * now. So the row is hidden immediately, the delete is held for a few seconds,
+ * and only when the window closes does anything leave the device.
+ *
+ * The failure mode is deliberately the safe one: if the app is closed mid-window
+ * the delete is committed to the outbox on the way out, and if that too is
+ * missed the record simply survives.
+ */
+const UNDO_WINDOW_MS = 6000;
+const deleting = new Map<string, number>();
+
+/** How many pixels of delete button a swipe uncovers. Matches --act-w. */
+const ACTION_W = 96;
+/** The row currently swiped open. Only ever one. */
+let swipeOpenId: string | null = null;
+
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('missing #app');
 
@@ -151,18 +173,37 @@ document.body.insertAdjacentHTML('afterbegin', sprite);
 // -------------------------------------------------------------------- toast
 
 let toastTimer: number | undefined;
-const toast = (msg: string): void => {
+const toast = (msg: string, action?: { label: string; onClick: () => void }): void => {
   let el = document.querySelector<HTMLDivElement>('.toast');
   if (!el) {
     el = document.createElement('div');
     el.className = 'toast';
     document.body.appendChild(el);
   }
-  el.textContent = msg;
-  el.classList.add('show');
-  window.clearTimeout(toastTimer);
   const node = el;
-  toastTimer = window.setTimeout(() => node.classList.remove('show'), 2600);
+  node.classList.toggle('has-act', Boolean(action));
+
+  if (action) {
+    node.innerHTML = `<span>${esc(msg)}</span><button class="toast-act" type="button">${esc(
+      action.label,
+    )}</button>`;
+    node.querySelector('button')?.addEventListener('click', () => {
+      node.classList.remove('show');
+      window.clearTimeout(toastTimer);
+      action.onClick();
+    });
+  } else {
+    node.textContent = msg;
+  }
+
+  node.classList.add('show');
+  window.clearTimeout(toastTimer);
+  // An undo offer has to outlive the window in which undoing is still possible,
+  // or it disappears while the delete is still reversible.
+  toastTimer = window.setTimeout(
+    () => node.classList.remove('show'),
+    action ? UNDO_WINDOW_MS - 200 : 2600,
+  );
 };
 
 // ------------------------------------------------------------------- render
@@ -448,18 +489,26 @@ const entryHtml = (f: PendingFlash): string => {
     : '';
 
   return `
-    <div class="entry" data-entry="${f.id}">
-      <span class="stem${calm}"></span>
-      <div>
-        <p class="when">${when}${
-          f.pending
-            ? '<span class="pending-dot" role="img" aria-label="Not synced yet"></span>'
-            : ''
-        }</p>
-        <p class="meta">${bits.join(' · ') || 'No details'} ${src}</p>
-        ${note}
+    <div class="swipe${swipeOpenId === f.id ? ' open' : ''}" data-swipe="${f.id}">
+      <div class="entry" data-entry="${f.id}">
+        <span class="stem${calm}"></span>
+        <div>
+          <p class="when">${when}${
+            f.pending
+              ? '<span class="pending-dot" role="img" aria-label="Not synced yet"></span>'
+              : ''
+          }</p>
+          <p class="meta">${bits.join(' · ') || 'No details'} ${src}</p>
+          ${note}
+        </div>
+        <div class="rail">${rail}${thumb}</div>
       </div>
-      <div class="rail">${rail}${thumb}</div>
+      <div class="swipe-actions">
+        <button class="del" type="button" data-del="${f.id}"
+          aria-label="Delete the flash at ${esc(clock(f.startedAt))}">
+          <svg aria-hidden="true"><use href="#i-trash"/></svg>Delete
+        </button>
+      </div>
     </div>
   `;
 };
@@ -516,6 +565,11 @@ const historyView = (): string => {
           <div class="stat"><b>${avgDur ?? '—'}${avgDur ? '<em>m</em>' : ''}</b><span>Avg of ${timed.length} timed</span></div>
         </div>
         ${body}
+        ${
+          flashes.length
+            ? `<p class="swipehint">Swipe an entry left to delete it. You get a moment to undo.</p>`
+            : ''
+        }
       </div>
       ${tabsHtml()}
     </div>
@@ -606,6 +660,10 @@ const paintSketches = (): void => {
 };
 
 const render = (): void => {
+  // Rebuilding the list mid-gesture would tear the node out from under the
+  // finger holding it.
+  if (drag?.axis === 'x') return;
+
   if (!authed) {
     root.innerHTML = loginView();
     root.querySelector<HTMLInputElement>('#pass')?.focus();
@@ -694,6 +752,24 @@ const openDrawover = (): void => {
  */
 let draftFor: string | null = null;
 
+/**
+ * The rendered state is the server's view, plus queued offline writes, minus
+ * anything inside its undo window. The last step is what makes a swiped-away row
+ * stay away for the few seconds before the delete is real — including on the log
+ * screen's ribbon, so a flash cannot vanish from history yet still be running.
+ */
+const recompute = (): void => {
+  const projected = projectState(serverState);
+  state =
+    deleting.size === 0
+      ? projected
+      : {
+          ...projected,
+          active: projected.active && deleting.has(projected.active.id) ? null : projected.active,
+          recent: projected.recent.filter((f) => !deleting.has(f.id)),
+        };
+};
+
 const syncDraftToActive = (): void => {
   // While a second flash is being composed the controls belong to the one about
   // to start, not the one still running, so a refresh must not reseed them.
@@ -714,7 +790,7 @@ const refresh = async (): Promise<void> => {
     // as far as this device knows.
     if (err instanceof Unauthorized) authed = false;
   }
-  state = projectState(serverState);
+  recompute();
   syncDraftToActive();
   render();
 };
@@ -774,10 +850,182 @@ const confirmEnd = async (): Promise<void> => {
   await refresh();
 };
 
+// ------------------------------------------------------------------ deleting
+
+/** Actually send the delete. Only reached once the undo window has closed. */
+const commitDelete = (id: string): void => {
+  // Nothing may await between forgetting the local hold and queueing the write,
+  // or a render in the gap would flash the row back onto the screen.
+  deleting.delete(id);
+  void deleteFlash(id).then(() => {
+    recompute();
+    syncDraftToActive();
+    render();
+  });
+};
+
+const beginDelete = (id: string): void => {
+  if (deleting.has(id)) return;
+  const flash = state.recent.find((f) => f.id === id) ?? state.active;
+  const when = flash ? clock(flash.startedAt) : '';
+
+  swipeOpenId = null;
+  deleting.set(id, window.setTimeout(() => commitDelete(id), UNDO_WINDOW_MS));
+  recompute();
+  syncDraftToActive();
+  render();
+
+  toast(when ? `Deleted ${when}` : 'Deleted', {
+    label: 'Undo',
+    onClick: () => {
+      const timer = deleting.get(id);
+      if (timer === undefined) return; // window already closed; nothing to undo
+      window.clearTimeout(timer);
+      deleting.delete(id);
+      recompute();
+      syncDraftToActive();
+      render();
+      toast('Restored');
+    },
+  });
+};
+
+/*
+ * Leaving the page closes every open undo window. The queue write itself is
+ * synchronous, so it lands in storage before the tab goes away even though
+ * nothing may await here.
+ */
+window.addEventListener('pagehide', () => {
+  for (const [id, timer] of deleting) {
+    window.clearTimeout(timer);
+    deleting.delete(id);
+    void deleteFlash(id);
+  }
+});
+
+// -------------------------------------------------------------------- swipe
+
+interface Drag {
+  id: string;
+  el: HTMLElement;
+  wrap: HTMLElement;
+  startX: number;
+  startY: number;
+  base: number;
+  /** Until the direction is known the gesture might still belong to the scroller. */
+  axis: 'undecided' | 'x';
+}
+
+let drag: Drag | null = null;
+/** Suppresses the click that a finished swipe would otherwise fire. */
+let swallowClick = false;
+
+const closeSwipe = (): void => {
+  if (!swipeOpenId) return;
+  swipeOpenId = null;
+  for (const el of root.querySelectorAll('.swipe.open')) el.classList.remove('open');
+};
+
+root.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const target = e.target as HTMLElement;
+  // The delete button is a target in its own right, not something to drag.
+  if (target.closest('.swipe-actions')) return;
+
+  const wrap = target.closest<HTMLElement>('.swipe');
+  const el = wrap?.querySelector<HTMLElement>('.entry');
+  if (!wrap || !el || !wrap.dataset.swipe) return;
+
+  drag = {
+    id: wrap.dataset.swipe,
+    el,
+    wrap,
+    startX: e.clientX,
+    startY: e.clientY,
+    base: swipeOpenId === wrap.dataset.swipe ? -ACTION_W : 0,
+    axis: 'undecided',
+  };
+});
+
+root.addEventListener(
+  'pointermove',
+  (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+
+    if (drag.axis === 'undecided') {
+      // Bias towards the scroller: a drag has to be clearly sideways before it
+      // is treated as a swipe, so scrolling a long night of entries never
+      // uncovers a delete button by accident.
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
+        drag = null;
+        return;
+      }
+      if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      drag.axis = 'x';
+      drag.wrap.classList.add('dragging');
+      drag.el.setPointerCapture?.(e.pointerId);
+    }
+
+    // Rightward drag past the closed position has nothing to reveal.
+    const x = Math.max(-ACTION_W, Math.min(0, drag.base + dx));
+    drag.el.style.transform = `translateX(${x}px)`;
+  },
+  { passive: true },
+);
+
+const endDrag = (commit: boolean): void => {
+  if (!drag) return;
+  const { el, wrap, id, axis } = drag;
+  drag = null;
+  if (axis !== 'x') return;
+
+  const current = new DOMMatrixReadOnly(getComputedStyle(el).transform).m41;
+  el.style.transform = '';
+  wrap.classList.remove('dragging');
+
+  const open = commit && current < -ACTION_W / 2;
+  closeSwipe();
+  if (open) {
+    swipeOpenId = id;
+    wrap.classList.add('open');
+  }
+  swallowClick = true;
+  window.setTimeout(() => {
+    swallowClick = false;
+  }, 0);
+};
+
+root.addEventListener('pointerup', () => endDrag(true));
+root.addEventListener('pointercancel', () => endDrag(false));
+
 // ------------------------------------------------------------------- events
 
 root.addEventListener('click', (e) => {
+  if (swallowClick) {
+    // The tap that ended a swipe must not also activate whatever it landed on.
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+
   const target = e.target as HTMLElement;
+
+  const del = target.closest<HTMLElement>('[data-del]');
+  if (del?.dataset.del) {
+    beginDelete(del.dataset.del);
+    return;
+  }
+
+  // With a row open, the next tap anywhere else is understood as dismissing it
+  // rather than as whatever it happened to land on.
+  if (swipeOpenId) {
+    e.preventDefault();
+    closeSwipe();
+    return;
+  }
+
   const btn = target.closest<HTMLElement>(
     '[data-act],[data-tab],[data-sym],[data-more],[data-mode],[data-view],.padslot',
   );

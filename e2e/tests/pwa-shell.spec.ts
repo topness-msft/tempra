@@ -29,13 +29,19 @@ test('the app shell opens with no network at all', async ({ page, context }) => 
 
 test('the bundled typeface survives going offline', async ({ page }) => {
   const cached = await page.evaluate(async () => {
-    const cache = await caches.open('tempra-v1-assets');
+    // Found by suffix rather than by name: the cache is versioned, and pinning
+    // the version here meant a routine bump silently opened an empty cache and
+    // failed a test that was actually still passing.
+    const name = (await caches.keys()).find((k) => k.endsWith('-assets'));
+    if (!name) return [];
+    const cache = await caches.open(name);
     const keys = await cache.keys();
     return keys.map((r) => new URL(r.url).pathname);
   });
 
   // Fonts are referenced from inside the CSS, so they are easy to miss when
-  // precaching. Losing them would leave the app in the wrong typeface at 3am.
+  // precaching. Losing them would leave the app readable but in the wrong
+  // typeface exactly when it is offline.
   expect(cached.filter((p) => p.endsWith('.woff2')).length).toBeGreaterThan(0);
   expect(cached.some((p) => p.endsWith('.css'))).toBeTruthy();
   expect(cached.some((p) => p.endsWith('.js'))).toBeTruthy();
