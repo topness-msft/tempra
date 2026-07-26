@@ -65,11 +65,15 @@ together because each one surfaces in the context the others miss:
 1. **Vibrate Device** — a buzz you feel. This is the one that matters for Back
    Tap and the widget, where nothing else has made a sound or shown a light. It
    also survives *Show When Run* being off.
-2. **Show Result**, text `Flash logged, [Current Date].` — Siri **speaks** this
+2. **Show Content** — text `Flash logged, [Current Date].` Siri **speaks** this
    when the shortcut was invoked by voice, and shows a brief overlay when it was
    tapped. Worth having precisely because she has already spoken out loud to
    trigger it; a spoken reply adds nothing to a room that just heard her.
-3. **Show Notification** — the only one that *persists*. Show Result vanishes,
+
+   Called **Show Result** before iOS 18, and still that in most guides you'll
+   find online. If your action list has neither, search the chooser for
+   "content" rather than scrolling.
+3. **Show Notification** — the only one that *persists*. Show Content vanishes,
    so at 7am there is no record of what happened at 3am other than the app
    itself. A notification is still sitting there.
 
@@ -80,7 +84,7 @@ together because each one surfaces in the context the others miss:
 Put them in that order, last in the shortcut.
 
 These three do not talk over each other. Siri's spoken reply is reserved for the
-shortcut's *result*, so only Show Result is voiced; the notification stays
+shortcut's *result*, so only Show Content is voiced; the notification stays
 visual even with AirPods in, because Announce Notifications does not cover
 Shortcuts-generated notifications. You get the line spoken once and a silent
 copy that keeps.
@@ -281,7 +285,7 @@ You    Moderate.
 Siri   Logged tinnitus — moderate — for today.
 ```
 
-To get that spoken confirmation, end the shortcut with **Show Result** and text
+To get that spoken confirmation, end the shortcut with **Show Content** and text
 along the lines of `Logged tinnitus — [severity] — for today.` Run hands-free
 Siri reads it aloud; run from the Home Screen it's a banner. Without it you get
 Siri's flat "Done", which tells you a shortcut ran but not what was written.
