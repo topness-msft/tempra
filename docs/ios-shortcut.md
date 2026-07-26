@@ -192,9 +192,17 @@ instead of a number to take a symptom back to unrecorded.
 The symptom keys are `sleep`, `fatigue`, `brain_fog`, `low_mood`, `tinnitus`,
 `joint_pain`, `anxiety`, `headache`, `dryness`, `skin`. Anything else is a 400.
 
-To ask rather than assume, add an **Ask for Input** (Number, default `2`) above
-and use its **Provided Input** as the value — worth it here in a way it isn't for
-a flash, because a check-in is a daytime action with attention to spare.
+To ask rather than assume, put a **Choose from Menu** above the request, prompt
+`How bad?`, with three items: **Mild**, **Moderate**, **Severe**. In each branch
+add a **Number** action (`1`, `2`, `3` respectively) followed by **Set Variable**
+→ `severity`, then use that variable as the value in step 4.
+
+Use a menu rather than **Ask for Input**, because this shortcut's whole point is
+being run by voice. Ask for Input set to Number makes Siri ask you to *say a
+number*, and nobody knows offhand whether their tinnitus is a 2 or a 3. A menu
+is read aloud as its item names, so you answer "moderate" and mean it. Worth the
+extra prompt here in a way it isn't for a flash, because a check-in is a daytime
+action with attention to spare.
 
 A note for the day works the same way: add a Text field with key `note`. It
 replaces the day's existing note rather than appending, so keep it for shortcuts
