@@ -1,5 +1,7 @@
-/* Tempra — Apothecary palette. Single source of truth for design tokens;
-   ported from design/ui-mocks.html. Contrast-corrected values only. */
+/* The screen styles are lifted verbatim from design/ui-mocks.html so the
+   shipped app inherits the reviewed design rather than an approximation. */
+@import './_mock.css';
+
 :root {
   --cream: #fff9f5;
   --blush: #fbede6;
@@ -13,6 +15,8 @@
   --sage: #4f6b4d;
   --sage-soft: #e4ede2;
   --line: rgba(58, 20, 41, 0.14);
+  --shadow: 0 30px 70px -34px rgba(58, 20, 41, 0.5);
+  --serif: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   --sans: 'IBM Plex Sans', 'Helvetica Neue', -apple-system, sans-serif;
 }
@@ -24,60 +28,196 @@
 
 html,
 body {
+  margin: 0;
   height: 100%;
+  overscroll-behavior-y: none;
 }
 
 body {
-  margin: 0;
   font-family: var(--sans);
   color: var(--plum);
-  background-color: var(--cream);
-  background-image:
-    radial-gradient(58% 44% at 8% 3%, rgba(228, 137, 155, 0.34) 0%, transparent 62%),
-    radial-gradient(48% 40% at 96% 10%, rgba(199, 154, 62, 0.22) 0%, transparent 60%),
-    radial-gradient(70% 52% at 80% 94%, rgba(179, 63, 102, 0.18) 0%, transparent 66%);
-  background-attachment: fixed;
+  background: var(--cream);
   -webkit-font-smoothing: antialiased;
+  /* Stop iOS Safari zooming when a field is focused at 3am. */
+  text-size-adjust: 100%;
 }
 
-.boot {
-  min-height: 100dvh;
+/* ---------- the mock's phone screen becomes the actual viewport ---------- */
+#app,
+.screen {
+  width: 100%;
+  height: 100dvh;
+  max-width: 520px;
+  margin: 0 auto;
+  border-radius: 0;
+}
+
+.screen {
+  padding-top: env(safe-area-inset-top);
+}
+
+.stage {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The mock drew iOS chrome for presentation; the real device supplies it. */
+.island,
+.statusbar {
+  display: none;
+}
+
+/* The masthead scrolls with the content rather than being pinned. On a real
+   Safari viewport (toolbars visible) a fixed header left the form about 275px
+   tall, which is not enough to log a flash without fighting the scroller.
+   Scrolling it away also matches how iOS large titles behave. */
+.scroll > .hd {
+  margin-bottom: 2px;
+}
+
+/* The download controls are anchors so the browser handles the save, but they
+   must read as the mock's buttons — no inherited link underline. */
+a.btn {
+  text-decoration: none;
+}
+
+/* ---------- states the mock did not need ---------- */
+/* Two different messages share this shell: one about sync, one about security.
+   They are deliberately separate classes so neither can be selected by accident. */
+.banner {
+  flex: none;
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border-radius: 16px;
+  background: rgba(199, 154, 62, 0.14);
+  border: 1px solid var(--gold-line);
+  color: var(--gold);
+  font-size: 15px;
+  font-weight: 600;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 32px;
+  gap: 9px;
+}
+
+.banner b {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.insecure-bar {
+  background: rgba(179, 63, 102, 0.12);
+  border-color: rgba(179, 63, 102, 0.4);
+  color: var(--berry);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  z-index: 60;
+  background: var(--plum);
+  color: #fff;
+  padding: 13px 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 18px 40px -20px rgba(58, 20, 41, 0.9);
+  opacity: 0;
+  transition: opacity 0.25s ease, translate 0.25s ease;
+  pointer-events: none;
+  max-width: 88vw;
   text-align: center;
 }
 
-.mark {
+.toast.show {
+  opacity: 1;
+  translate: -50% -6px;
+}
+
+.empty-note {
+  margin: 0;
+  padding: 26px 10px;
+  text-align: center;
+  color: var(--plum-soft);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+/* ---------- login ---------- */
+.login {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px 24px;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.login .wordmark {
   font-family: var(--mono);
   font-weight: 300;
-  font-size: clamp(38px, 12vw, 62px);
+  font-size: 52px;
+  line-height: 1;
   letter-spacing: 0.02em;
-  margin: 0;
+  margin: 0 0 6px;
   background: linear-gradient(102deg, var(--berry) 12%, var(--rose) 56%, #c89334 98%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-.tag {
-  margin: 0;
+.login p {
+  margin: 0 0 10px;
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.5;
   color: var(--plum-soft);
-  max-width: 26ch;
 }
 
-.status {
-  margin: 8px 0 0;
+.login input {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 18px;
+  font-size: 17px;
+  font-family: var(--sans);
+  color: var(--plum);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.login .err {
+  color: var(--berry);
+  font-weight: 600;
+  font-size: 15px;
+  min-height: 22px;
+  margin: 0;
+}
+
+/* ---------- history extras ---------- */
+.daygroup + .daygroup {
+  margin-top: 14px;
+}
+
+.dayhead {
   font-family: var(--mono);
   font-size: 13px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--gold);
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.pending-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  margin-left: 7px;
+  vertical-align: middle;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -85,6 +225,7 @@ body {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

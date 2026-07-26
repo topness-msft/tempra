@@ -20,6 +20,15 @@ export default defineConfig({
       // against this viewport deliberately, not a generic desktop one.
       name: 'iphone-15-pro',
       use: { ...devices['iPhone 14 Pro'] },
+      testIgnore: /pwa-shell\.spec\.ts/,
+    },
+    {
+      // Service-worker specs only. Playwright's WebKit offline emulation aborts
+      // navigations before the service worker can answer, so offline reloads
+      // cannot be tested there; Chromium implements the spec faithfully.
+      name: 'mobile-chrome-pwa',
+      use: { ...devices['Pixel 7'] },
+      testMatch: /pwa-shell\.spec\.ts/,
     },
   ],
   webServer: {
@@ -33,6 +42,9 @@ export default defineConfig({
       DATA_DIR: './data/e2e',
       DB_FILE: 'e2e.db',
       LOG_LEVEL: 'warn',
+      // Lets each spec start from an empty history. Refuses to switch on in
+      // production or alongside a passphrase; see config.allowTestReset.
+      ALLOW_TEST_RESET: '1',
     },
   },
 });

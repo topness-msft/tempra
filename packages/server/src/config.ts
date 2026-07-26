@@ -50,6 +50,17 @@ export const config = {
   bedsideSecret: process.env.BEDSIDE_SECRET ?? null,
   /** Hours of silence after which a heartbeat-enabled device is called stale. */
   bedsideHeartbeatHours: Number(process.env.BEDSIDE_HEARTBEAT_HOURS ?? 3),
+
+  /**
+   * Exposes a destructive `/api/test/reset` route for end-to-end tests. It is
+   * opt-in, refuses to switch on in production, and refuses to coexist with a
+   * configured passphrase — a real deployment can never accidentally ship a
+   * button that erases the user's history.
+   */
+  allowTestReset:
+    bool(process.env.ALLOW_TEST_RESET, false) &&
+    process.env.NODE_ENV !== 'production' &&
+    !process.env.TEMPRA_PASSPHRASE,
 } as const;
 
 export const dbPath = (): string => path.join(config.dataDir, config.dbFile);

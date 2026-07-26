@@ -250,11 +250,23 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
       return { ok: true, kind, action: running ? 'ended' : 'started', flash: result };
     },
   );
+
+  // -------------------------------------------------------------- test hatch
+
+  if (config.allowTestReset) {
+    // Only reachable when ALLOW_TEST_RESET is on, NODE_ENV is not production,
+    // and no passphrase is configured. See config.allowTestReset.
+    app.log.warn('ALLOW_TEST_RESET is on: /api/test/reset will erase all data');
+    app.post('/api/test/reset', async () => {
+      opts.db.exec('DELETE FROM sketches; DELETE FROM device_events; DELETE FROM flashes;');
+      return { ok: true };
+    });
+  }
 };
 
 const exportName = (ext: string): string => {
   const d = new Date().toISOString().slice(0, 10);
-  return `tempra-${d}.${ext}`;
+  return `tempra-export-${d}.${ext}`;
 };
 
 export interface BedsideStatus {
