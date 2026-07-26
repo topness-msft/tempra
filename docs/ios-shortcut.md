@@ -164,7 +164,7 @@ night. They're keyed on the date rather than on an event, so a shortcut writes t
 a URL that names the day:
 
 ```
-https://tempra.fly.dev/api/days/2026-07-26
+https://your-app.fly.dev/api/days/2026-07-26
 ```
 
 Use **PATCH**, not PUT. PATCH folds the symptoms you name into whatever is already
@@ -177,7 +177,7 @@ Build **Log tinnitus** as a duplicate of the first shortcut, then:
    `yyyy-MM-dd`. This has to be the *phone's* date — the day is a local calendar
    day, not a UTC one, and at 1am those differ.
 2. In **Get Contents of URL**, set the URL to
-   `https://tempra.fly.dev/api/days/` followed by the **Formatted Date** variable.
+   `https://your-app.fly.dev/api/days/` followed by the **Formatted Date** variable.
 3. **Method**: `PATCH`, same `Authorization` header, **Request Body**: `JSON`.
 4. In the request body add one field:
 
