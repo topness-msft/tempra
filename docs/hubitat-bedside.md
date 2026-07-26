@@ -39,29 +39,32 @@ credential** — anyone who has it can log flashes. It's random and long, and th
 endpoint returns a flat `404` for a wrong secret so it gives nothing away to
 someone guessing, but don't paste it anywhere public.
 
-## First: check Rule Machine is installed
+## First: find Rule Machine
 
-Look in **Apps** in the sidebar. If **Rule Machine** is listed, you're done — skip
-to Rule 1.
+Where it lives depends on your platform version, and this is the single most
+confusing part of the setup.
 
-If it isn't there: **Apps** → **Add Built-In App** → **Rule Machine**.
+**Platform 2.4.x and newer** (redesigned UI, breadcrumb navigation, green buttons):
+Rule Machine is in the **Automations** section of the left sidebar. It's already
+there — nothing to install.
 
-**If Rule Machine isn't in the Add Built-In App list either, that means it's
-already installed.** Hubitat hides built-in apps once they've been added, so a
-missing entry means present, not absent — which is the opposite of what the screen
-implies. A tell-tale sign: if Rule Machine, Basic Rule, Simple Automation, Button
-Controller and Notifications are *all* absent from that list, they're all installed
-and you should be looking at the Apps page instead.
+**Older platforms:** it's under **Apps**. If it isn't listed, add it with
+**Apps** → **Add Built-In App** → **Rule Machine**.
 
-Either way this is a one-time step. Every rule lives inside that single app
-instance, so both rules below start from **Apps** → **Rule Machine** →
-**Create New Rule**.
+On 2.4.x, Rule Machine appears in **neither** the Apps list **nor** the Add
+Built-In App list, because it no longer lives under Apps at all. That looks
+exactly like "not installed and not available", which sends you hunting for a
+download that doesn't exist. Check the sidebar for **Automations** before
+concluding anything is missing.
+
+Everything below starts from **Automations** → **Rule Machine** →
+**Create New Rule** (or **Apps** → **Rule Machine** on older platforms).
 
 ---
 
 ## Rule 1 — the button
 
-**Apps** → **Rule Machine** → **Create New Rule**.
+**Automations** → **Rule Machine** → **Create New Rule**.
 
 - **Name**: `Hot flash — bedside button`
 
@@ -141,7 +144,7 @@ Machine.
 Without this, Tempra can't tell "no flashes last night" from "the integration has
 been broken for a week". Both look like silence, and only one of them is good news.
 
-**Create New Rule**:
+**Automations** → **Rule Machine** → **Create New Rule**:
 
 - **Name**: `Hot flash — bedside heartbeat`
 - **Trigger Events**: **Click to set** → capability **Certain Time** → **Periodic**
@@ -191,6 +194,7 @@ A press returns `{"ok":true,"kind":"press","action":"started","flash":{...}}`.
 
 | What you see | What it means |
 | --- | --- |
+| Can't find Rule Machine at all | On platform 2.4.x it's under **Automations** in the sidebar, not Apps — and it won't appear in the Add Built-In App list either. Nothing is missing. |
 | Can't find the HTTP action | It's worded **"Send HTTP Request..."** in the Select Action to Add list, not "HTTP Request" or "POST". |
 | Button isn't in the device list | You skipped the capability picker — choose **Button** first. If it's still missing, the device's driver doesn't expose the button capability. |
 | No content type field | Hub firmware is too old. Update the platform, or the body goes out form-encoded and won't parse as JSON. |
