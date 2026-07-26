@@ -6,7 +6,8 @@ A hot flash tracker. Single user, mobile first, and built around one assumption:
 the moment worth capturing happens at 3am, in the dark, on a phone with one bar,
 by someone who wants to go back to sleep.
 
-Live at **https://tempra.fly.dev**.
+Single user by design — you run your own copy. See [Deployment](#deployment); the
+docs write your instance's address as `https://your-app.fly.dev` throughout.
 
 ## What it does
 

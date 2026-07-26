@@ -32,6 +32,8 @@ invent a number.
   anything that fires a *pushed* event)
 - Your bedside secret: the value of the `BEDSIDE_SECRET` Fly secret, in
   `.tmp/secrets.json` (gitignored). Written below as `YOUR_BEDSIDE_SECRET`.
+- Your app's address: your Fly app's hostname. Written below as
+  `https://your-app.fly.dev`.
 
 The secret is the last segment of the URL rather than a header, because Rule
 Machine's HTTP action can't attach headers. Which means **the URL itself is the
@@ -105,7 +107,7 @@ Add these in order:
    - Method / Action: **POST**
    - URL:
      ```
-     https://tempra.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET
+     https://your-app.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET
      ```
    - Content type: **application/json**
    - Body:
@@ -151,7 +153,7 @@ been broken for a week". Both look like silence, and only one of them is good ne
   → every hour
 - **Actions to Run**: **Send HTTP Request...**
   - Method: **POST**
-  - URL: the same `https://tempra.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET`
+  - URL: the same `https://your-app.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET`
   - Content type: **application/json**
   - Body:
     ```json
@@ -181,7 +183,7 @@ Adjust with the `BEDSIDE_HEARTBEAT_HOURS` secret if you change the interval.
 To test without leaving the desk:
 
 ```bash
-curl -X POST https://tempra.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET \
+curl -X POST https://your-app.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET \
   -H 'Content-Type: application/json' \
   -d '{"kind":"press"}'
 ```

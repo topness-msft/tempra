@@ -1,3 +1,7 @@
+# The Fly app name. It also decides the default hostname, which is
+# https://<app>.fly.dev — so changing this changes the address the iOS Shortcut
+# and the bedside button post to. Forking? Set your own name here before the
+# first deploy; the docs call that address https://your-app.fly.dev.
 app = "tempra"
 primary_region = "iad"
 

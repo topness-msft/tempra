@@ -22,6 +22,9 @@ Treat it like a password. Anyone holding it can read and write the whole log.
 Note this is *not* the passphrase you type into the website. The app login and the
 API token are separate credentials, and changing one doesn't affect the other.
 
+Your app's address: your Fly app's hostname, `https://<your-app>.fly.dev`. Below
+it's written as `https://your-app.fly.dev`.
+
 ---
 
 ## 1. "Log hot flash" — one tap, no questions
@@ -30,7 +33,7 @@ API token are separate credentials, and changing one doesn't affect the other.
 2. Tap **Add Action**, search for **Get Contents of URL**, add it.
 3. In the URL field type:
    ```
-   https://tempra.fly.dev/api/flashes
+   https://your-app.fly.dev/api/flashes
    ```
 4. Tap the **▸** next to the URL to expand the action, then set:
    - **Method**: `POST`
@@ -145,7 +148,7 @@ not a broken one.
 If you want one anyway, duplicate the first shortcut and change only the URL to:
 
 ```
-https://tempra.fly.dev/api/flashes/end
+https://your-app.fly.dev/api/flashes/end
 ```
 
 An empty JSON body means "it ended just now". Sending `{"endedAt": null}` closes it
