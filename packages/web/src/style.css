@@ -1,0 +1,90 @@
+/* Tempra — Apothecary palette. Single source of truth for design tokens;
+   ported from design/ui-mocks.html. Contrast-corrected values only. */
+:root {
+  --cream: #fff9f5;
+  --blush: #fbede6;
+  --petal: #f6d8ce;
+  --rose: #e4899b;
+  --berry: #b33f66;
+  --plum: #3a1429;
+  --plum-soft: #5e3a4c;
+  --gold: #8a6a22;
+  --gold-line: rgba(199, 154, 62, 0.5);
+  --sage: #4f6b4d;
+  --sage-soft: #e4ede2;
+  --line: rgba(58, 20, 41, 0.14);
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --sans: 'IBM Plex Sans', 'Helvetica Neue', -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--plum);
+  background-color: var(--cream);
+  background-image:
+    radial-gradient(58% 44% at 8% 3%, rgba(228, 137, 155, 0.34) 0%, transparent 62%),
+    radial-gradient(48% 40% at 96% 10%, rgba(199, 154, 62, 0.22) 0%, transparent 60%),
+    radial-gradient(70% 52% at 80% 94%, rgba(179, 63, 102, 0.18) 0%, transparent 66%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+.boot {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+}
+
+.mark {
+  font-family: var(--mono);
+  font-weight: 300;
+  font-size: clamp(38px, 12vw, 62px);
+  letter-spacing: 0.02em;
+  margin: 0;
+  background: linear-gradient(102deg, var(--berry) 12%, var(--rose) 56%, #c89334 98%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tag {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--plum-soft);
+  max-width: 26ch;
+}
+
+.status {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

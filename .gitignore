@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+.tools/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+test-results/
+playwright-report/
+.vite/
+*.tsbuildinfo

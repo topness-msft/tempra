@@ -1,0 +1,42 @@
+app = "tempra"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  HOST = "0.0.0.0"
+  DATA_DIR = "/data"
+  DB_FILE = "tempra.db"
+  NODE_ENV = "production"
+
+[[mounts]]
+  source = "tempra_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # This app must answer at 3am from a phone with one bar. A cold start behind
+  # a suspended machine is the one failure the user would actually feel, so the
+  # machine stays up rather than trading availability for a few cents.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 400
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

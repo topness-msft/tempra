@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tempra — Three Look &amp; Feel Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300..800&family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Familjen+Grotesk:wght@400..700&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SHARED SKELETON  — structure only; each direction restyles it
+   ============================================================ */
+*{box-sizing:border-box}
+body{
+  margin:0;background:#EFEBE6;color:#1a1a1a;
+  font-family:"Archivo",system-ui,sans-serif;
+  background-image:
+    radial-gradient(60% 40% at 12% 0%,rgba(0,0,0,.05),transparent 60%),
+    radial-gradient(50% 40% at 92% 8%,rgba(0,0,0,.04),transparent 60%);
+}
+.page{max-width:1240px;margin:0 auto;padding:52px 22px 96px}
+
+.intro{max-width:620px;margin-bottom:52px}
+.intro h1{
+  font-family:"Instrument Serif",serif;font-weight:400;font-size:clamp(44px,7vw,68px);
+  line-height:1;letter-spacing:-.02em;margin:0 0 14px;
+}
+.intro h1 em{font-style:italic;opacity:.55}
+.intro p{margin:0;font-size:15px;line-height:1.65;color:#4a4a4a;max-width:520px}
+.intro .tag{
+  display:inline-block;margin-bottom:18px;padding:6px 12px;border:1px solid rgba(0,0,0,.2);
+  border-radius:999px;font-size:13px;letter-spacing:.28em;text-transform:uppercase;font-weight:600;
+}
+.backlink{
+  display:inline-flex;align-items:center;gap:11px;margin-top:24px;padding:13px 18px 13px 14px;
+  border:1px solid rgba(0,0,0,.22);border-radius:999px;background:#fff;
+  text-decoration:none;color:#1a1a1a;transition:all .3s cubic-bezier(.2,.8,.2,1);
+}
+.backlink:hover{transform:translateY(-2px);box-shadow:0 12px 26px -14px rgba(0,0,0,.5);border-color:#1a1a1a}
+.backlink .sw{display:flex;gap:3px;flex:none}
+.backlink .sw i{width:11px;height:22px;border-radius:2px;display:block}
+.backlink .txt{line-height:1.3}
+.backlink .txt b{display:block;font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+.backlink .txt span{display:block;font-size:13px;color:#5a5a5a;margin-top:3px}
+.backlink .arw{font-size:15px;opacity:.45;margin-left:4px}
+
+.stage{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:clamp(26px,3.4vw,46px);align-items:start}
+
+.opt-head{margin-bottom:18px;min-height:118px}
+.opt-head .n{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:700;opacity:.5;display:block;margin-bottom:8px}
+.opt-head h2{font-size:27px;margin:0 0 8px;letter-spacing:-.02em;font-weight:600}
+.opt-head p{margin:0;font-size:13px;line-height:1.6;color:#4a4a4a}
+.swatches{display:flex;gap:5px;margin-top:12px}
+.swatches i{width:26px;height:14px;border-radius:3px;display:block;border:1px solid rgba(0,0,0,.12)}
+
+/* device — iPhone 15 Pro : 393 × 852 pt logical */
+.dev{border-radius:60px;padding:10px;width:413px}
+.scr{
+  width:393px;height:852px;border-radius:50px;padding:0 16px 8px;
+  display:flex;flex-direction:column;overflow:hidden;position:relative;
+}
+.island{position:absolute;top:12px;left:50%;translate:-50% 0;width:125px;height:37px;background:#0A0A0A;border-radius:22px;z-index:20}
+.sysbar{height:59px;flex:none;display:flex;justify-content:space-between;align-items:flex-end;padding:0 14px 6px;font-size:16px;font-weight:700;position:relative;z-index:21}
+.brand{font-size:15px;letter-spacing:.26em;text-transform:uppercase;font-weight:800}
+
+.ribbon{flex:none;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin:8px 0 18px}
+.ribbon .t{font-variant-numeric:tabular-nums;line-height:1;display:block}
+.ribbon .s{display:block;margin-top:8px;font-size:15px;font-weight:600}
+.ribbon button{cursor:pointer;border:0;font-family:inherit;min-height:48px;padding:0 20px}
+
+.hd{flex:none;margin-bottom:16px}
+.hd .k{font-size:13px;letter-spacing:.22em;text-transform:uppercase;margin:0 0 8px;font-weight:800}
+.hd h3{margin:0;letter-spacing:-.02em;font-weight:400;font-size:32px;line-height:1.08}
+.hd p{margin:10px 0 0;font-size:17px;line-height:1.45;opacity:.75}
+
+.body{flex:1;display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;scrollbar-width:none}
+.body::-webkit-scrollbar{display:none}
+.blk{padding:16px;flex:none}
+.lab{font-size:15px;font-weight:700;margin:0 0 14px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.lab u{text-decoration:none;font-size:17px;font-weight:700}
+
+/* intensity — slider snapped to the 1–10 scale (48pt thumb) */
+.gauge{display:flex;align-items:baseline;gap:12px;margin:2px 0 12px}
+.gauge .val{font-size:52px;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums;min-width:60px}
+.gauge .val small{font-size:20px;opacity:.6;margin-left:2px}
+.gauge .word{font-size:21px;padding-bottom:4px;opacity:.8}
+.slider{
+  -webkit-appearance:none;appearance:none;width:100%;height:52px;background:transparent;
+  outline:none;cursor:pointer;margin:0;display:block;--pct:34%;
+}
+.slider::-webkit-slider-runnable-track{height:24px}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:48px;height:48px;margin-top:-13px;transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+.slider:active::-webkit-slider-thumb{transform:scale(1.09)}
+.slider::-moz-range-track{height:24px}
+.slider::-moz-range-thumb{width:44px;height:44px}
+.ticks{display:grid;grid-template-columns:repeat(10,1fr);margin-top:4px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.ticks span{text-align:center;opacity:.5;transition:all .2s}
+.ticks span.on{opacity:1;transform:scale(1.25)}
+.key{display:flex;justify-content:space-between;margin-top:10px;font-size:14px;font-weight:600;opacity:.75}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid button{
+  display:flex;align-items:center;gap:10px;min-height:70px;padding:12px 13px;
+  cursor:pointer;font-family:inherit;font-size:17px;font-weight:600;text-align:left;line-height:1.15;
+  transition:all .28s cubic-bezier(.2,.8,.2,1);
+}
+.grid button svg{width:29px;height:29px;flex:none;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:stroke .28s}
+.go{width:100%;min-height:56px;cursor:pointer;border:0;font-family:inherit;font-size:18px;transition:all .3s cubic-bezier(.2,.8,.2,1)}
+.go:active{transform:scale(.98)}
+.cta{flex:none;padding:12px 0 4px}
+
+.nav{flex:none;margin-top:4px;display:grid;grid-template-columns:repeat(3,1fr);padding-top:10px}
+.nav a{
+  text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:5px;
+  min-height:52px;justify-content:center;font-size:13px;font-weight:700;
+}
+.nav a svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.homebar{flex:none;height:26px;display:grid;place-items:center}
+.homebar i{width:140px;height:5px;border-radius:3px;display:block;opacity:.35}
+
+/* ============================================================
+   A · NOCTURNE  — dark, luminous, for 3am eyes
+   ============================================================ */
+.a{--ink:#EAE3D9;--dim:#8B8579}
+.a{--bg:#0C0F14;--panel:rgba(255,255,255,.045);--edge:rgba(234,227,217,.11);--amber:#F2A65A;--coral:#E5674E}
+.a .opt-head h2{font-family:"Instrument Serif",serif;font-weight:400;font-size:31px}
+.a .dev{background:linear-gradient(160deg,#242A33,#0C0F14);box-shadow:0 30px 70px -34px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.09)}
+.a .scr{
+  background:
+    radial-gradient(88% 52% at 50% -12%,rgba(242,166,90,.24),transparent 62%),
+    radial-gradient(70% 40% at 100% 100%,rgba(229,103,78,.14),transparent 60%),
+    var(--bg);
+  color:var(--ink);
+}
+.a .sysbar{color:var(--dim)}
+.a .brand{color:var(--amber)}
+.a .ribbon{
+  background:var(--panel);border:1px solid var(--edge);border-radius:18px;padding:14px 15px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.a .ribbon .t{font-family:"Instrument Serif",serif;font-style:italic;font-size:34px;color:var(--amber)}
+.a .ribbon .s{color:#8B8579}
+.a .ribbon button{
+  background:transparent;border:1px solid var(--amber);color:var(--amber);
+  border-radius:999px;padding:0 20px;font-size:16px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;
+}
+.a .ribbon button:hover{background:var(--amber);color:#0C0F14}
+.a .hd .k{color:var(--coral)}
+.a .hd h3{font-family:"Instrument Serif",serif;font-size:33px;line-height:1.05}
+.a .hd h3 em{font-style:italic;color:var(--amber)}
+.a .blk{background:var(--panel);border:1px solid var(--edge);border-radius:18px}
+.a .lab{color:#8B8579}
+.a .lab u{color:var(--amber);font-family:"Instrument Serif",serif;font-style:italic;font-size:14px}
+.a .gauge .val{font-family:"Instrument Serif",serif;font-style:italic;color:var(--amber)}
+.a .gauge .word{font-family:"Instrument Serif",serif;font-style:italic;color:var(--dim)}
+.a .slider::-webkit-slider-runnable-track{border-radius:12px;border:1px solid var(--edge);background:linear-gradient(90deg,var(--coral),var(--amber) var(--pct),rgba(234,227,217,.09) var(--pct))}
+.a .slider::-webkit-slider-thumb{border-radius:50%;background:var(--amber);border:3px solid #0C0F14;box-shadow:0 0 24px rgba(242,166,90,.85)}
+.a .slider::-moz-range-track{border-radius:12px;border:1px solid var(--edge);background:linear-gradient(90deg,var(--coral),var(--amber) var(--pct),rgba(234,227,217,.09) var(--pct))}
+.a .slider::-moz-range-thumb{border-radius:50%;background:var(--amber);border:3px solid #0C0F14}
+.a .ticks{color:var(--dim)}
+.a .ticks span.on{color:var(--amber)}
+.a .key{color:var(--dim)}
+.a .grid button{
+  background:rgba(255,255,255,.03);border:1px solid var(--edge);border-radius:12px;
+  padding:11px 12px;color:#B8B0A4;
+}
+.a .grid button svg{stroke:var(--amber);opacity:.85}
+.a .grid button.on{background:rgba(242,166,90,.16);border-color:var(--amber);color:var(--amber);font-weight:700}
+.a .grid button.on svg{opacity:1;filter:drop-shadow(0 0 7px rgba(242,166,90,.7))}
+.a .go{
+  background:linear-gradient(100deg,var(--amber),var(--coral));color:#12080B;
+  border-radius:999px;padding:16px;font-weight:700;font-size:14px;letter-spacing:.02em;
+  box-shadow:0 16px 34px -16px rgba(242,166,90,.8);
+}
+.a .nav{border-top:1px solid var(--edge)}
+.a .nav a{color:#9A9184}
+.a .nav a.on{color:var(--amber)}
+.a .homebar i{background:var(--ink)}
+.a .cta{background:linear-gradient(180deg,transparent,var(--bg) 45%)}
+
+/* ============================================================
+   B · MERIDIAN — clinical, precise, chart-like
+   ============================================================ */
+.b{--paper:#FBFBF9;--ink:#151E1A;--rule:#D6DBD5;--teal:#0F6E62;--sage:#EDF2EC}
+.b .opt-head h2{font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:26px}
+.b .dev{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:8px;box-shadow:0 18px 44px -30px rgba(21,30,26,.5)}
+.b .scr{background:var(--paper);border-radius:3px;color:var(--ink);font-family:"IBM Plex Sans",sans-serif}
+.b .scr::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(var(--rule) 1px,transparent 1px);background-size:100% 32px;
+  mask-image:linear-gradient(180deg,rgba(0,0,0,.12),transparent 42%);
+}
+.b .sysbar{font-family:"IBM Plex Mono",monospace;font-size:15px;letter-spacing:.04em;color:#5C6B63;border-bottom:1px solid var(--rule);padding-bottom:10px}
+.b .brand{font-family:"IBM Plex Mono",monospace;letter-spacing:.34em;color:var(--teal);font-weight:600}
+.b .ribbon{border:1px solid var(--ink);border-left:5px solid var(--teal);background:#fff;padding:13px 14px;position:relative}
+.b .ribbon .t{font-family:"IBM Plex Mono",monospace;font-size:28px;font-weight:500;letter-spacing:-.01em}
+.b .ribbon .s{font-family:"IBM Plex Mono",monospace;color:#4A574F;letter-spacing:.04em;font-size:15px}
+.b .ribbon button{
+  background:var(--ink);color:#fff;border-radius:0;padding:11px 15px;
+  font-size:15px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+}
+.b .ribbon button:hover{background:var(--teal)}
+.b .hd{border-bottom:1px solid var(--rule);padding-bottom:14px;position:relative}
+.b .hd .k{font-family:"IBM Plex Mono",monospace;color:var(--teal);font-weight:500}
+.b .hd h3{font-size:25px;font-weight:300;line-height:1.15}
+.b .hd h3 em{font-style:normal;font-weight:600;color:var(--teal)}
+.b .blk{background:#fff;border:1px solid var(--rule);padding:14px;position:relative}
+.b .lab{font-family:"IBM Plex Mono",monospace;color:#5C6B63;font-weight:500;letter-spacing:.16em}
+.b .lab u{font-family:"IBM Plex Mono",monospace;color:var(--ink);font-weight:600}
+.b .gauge .val{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--teal)}
+.b .gauge .word{font-size:19px;color:#4A574F;font-weight:500}
+.b .slider::-webkit-slider-runnable-track{border-radius:0;border:1px solid var(--ink);background:linear-gradient(90deg,var(--teal),var(--teal) var(--pct),#fff var(--pct))}
+.b .slider::-webkit-slider-thumb{border-radius:0;width:44px;height:44px;margin-top:-11px;background:#fff;border:2px solid var(--ink)}
+.b .slider::-moz-range-track{border-radius:0;border:1px solid var(--ink);background:linear-gradient(90deg,var(--teal),var(--teal) var(--pct),#fff var(--pct))}
+.b .slider::-moz-range-thumb{border-radius:0;background:#fff;border:2px solid var(--ink)}
+.b .ticks{font-family:"IBM Plex Mono",monospace;color:#4A574F}
+.b .ticks span.on{color:var(--teal)}
+.b .key{font-family:"IBM Plex Mono",monospace;color:#4A574F}
+.b .grid{gap:0;border:1px solid var(--rule)}
+.b .grid button{
+  background:#fff;border:0;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);
+  padding:12px;color:var(--ink);font-weight:400;
+}
+.b .grid button:nth-child(2n){border-right:0}
+.b .grid button:nth-last-child(-n+2){border-bottom:0}
+.b .grid button svg{stroke:#4A574F}
+.b .grid button.on{background:var(--sage);font-weight:600;color:var(--teal);box-shadow:inset 3px 0 0 var(--teal)}
+.b .grid button.on svg{stroke:var(--teal)}
+.b .go{
+  background:var(--teal);color:#fff;border-radius:0;padding:15px;
+  font-weight:700;font-size:16px;letter-spacing:.14em;text-transform:uppercase;
+}
+.b .go:hover{background:var(--ink)}
+.b .nav{border-top:1px solid var(--ink)}
+.b .nav a{color:#4A574F;font-family:"IBM Plex Mono",monospace}
+.b .nav a.on{color:var(--teal);font-weight:600}
+.b .homebar i{background:var(--ink)}
+
+/* ============================================================
+   C · MARIGOLD — warm, chunky, confident
+   ============================================================ */
+.c{--cream:#FFF3DF;--ink:#2B1608;--clay:#C4451F;--gold:#E8A020;--olive:#6E7538}
+.c .opt-head h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:29px;letter-spacing:-.03em}
+.c .dev{background:var(--ink);border-radius:38px;padding:9px;box-shadow:10px 12px 0 rgba(43,22,8,.2)}
+.c .scr{
+  background:
+    radial-gradient(90% 44% at 50% 0%,rgba(232,160,32,.34),transparent 62%),
+    var(--cream);
+  border-radius:30px;color:var(--ink);font-family:"Familjen Grotesk",sans-serif;
+}
+.c .scr::after{
+  content:"";position:absolute;right:-58px;bottom:-58px;width:190px;height:190px;
+  border-radius:50%;border:14px solid rgba(196,69,31,.14);pointer-events:none;
+}
+.c .sysbar{font-weight:600;color:rgba(43,22,8,.6)}
+.c .brand{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;letter-spacing:.22em;color:var(--clay)}
+.c .ribbon{
+  background:var(--clay);color:var(--cream);border:2.5px solid var(--ink);border-radius:20px;
+  padding:14px 15px;box-shadow:5px 5px 0 var(--ink);
+}
+.c .ribbon .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:32px;letter-spacing:-.03em}
+.c .ribbon .s{opacity:.85;font-weight:600}
+.c .ribbon button{
+  background:var(--gold);color:var(--ink);border:2.5px solid var(--ink);border-radius:999px;
+  padding:0 20px;font-weight:800;font-size:16px;letter-spacing:.04em;text-transform:uppercase;
+  box-shadow:3px 3px 0 var(--ink);
+}
+.c .ribbon button:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.c .hd .k{color:var(--clay);font-weight:800}
+.c .hd h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:34px;line-height:.98;letter-spacing:-.04em}
+.c .hd h3 em{font-style:normal;color:var(--clay)}
+.c .blk{background:#fff;border:2.5px solid var(--ink);border-radius:18px;box-shadow:4px 4px 0 rgba(43,22,8,.16)}
+.c .lab{color:rgba(43,22,8,.62);font-weight:800}
+.c .lab u{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;color:var(--clay);font-size:13px}
+.c .gauge .val{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;color:var(--clay)}
+.c .gauge .word{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;color:var(--ink);opacity:.72}
+.c .slider::-webkit-slider-runnable-track{height:26px;border-radius:13px;border:2.5px solid var(--ink);background:linear-gradient(90deg,var(--clay),var(--gold) var(--pct),var(--cream) var(--pct))}
+.c .slider::-webkit-slider-thumb{width:48px;height:48px;border-radius:50%;margin-top:-14px;background:var(--gold);border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.c .slider::-moz-range-track{height:26px;border-radius:13px;border:2.5px solid var(--ink);background:linear-gradient(90deg,var(--clay),var(--gold) var(--pct),var(--cream) var(--pct))}
+.c .slider::-moz-range-thumb{width:44px;height:44px;border-radius:50%;background:var(--gold);border:2.5px solid var(--ink)}
+.c .ticks{color:rgba(43,22,8,.62)}
+.c .ticks span.on{color:var(--clay)}
+.c .key{color:rgba(43,22,8,.68);font-weight:700}
+.c .grid{gap:8px}
+.c .grid button{
+  background:var(--cream);border:2.5px solid var(--ink);border-radius:999px;
+  padding:11px 14px;font-weight:600;color:var(--ink);
+}
+.c .grid button svg{stroke:var(--clay)}
+.c .grid button.on{background:var(--gold);font-weight:700;box-shadow:3px 3px 0 var(--ink)}
+.c .grid button.on svg{stroke:var(--ink)}
+.c .go{
+  background:var(--clay);color:var(--cream);border:2.5px solid var(--ink);border-radius:999px;
+  padding:16px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:16px;letter-spacing:-.01em;
+  box-shadow:5px 5px 0 var(--ink);
+}
+.c .go:hover{transform:translate(-1px,-1px);box-shadow:6px 6px 0 var(--ink)}
+.c .nav{border-top:2.5px solid var(--ink)}
+.c .nav a{color:rgba(43,22,8,.62);font-weight:700}
+.c .nav a.on{color:var(--clay);font-weight:800}
+.c .homebar i{background:var(--ink)}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-sweat" viewBox="0 0 24 24"><path d="M12 3s5.6 6.2 5.6 9.7a5.6 5.6 0 1 1-11.2 0C6.4 9.2 12 3 12 3Z"/><path d="M9.2 13.4a2.9 2.9 0 0 0 2.2 3.1"/></symbol>
+  <symbol id="i-chills" viewBox="0 0 24 24"><path d="M12 2.4v19.2M3.7 7.2l16.6 9.6M20.3 7.2 3.7 16.8"/><path d="M12 6.6 9.7 4.3M12 6.6l2.3-2.3M12 17.4l-2.3 2.3M12 17.4l2.3 2.3"/><path d="m6.6 9.7-3.1-.8M6.6 14.3l-3.1.8M17.4 9.7l3.1-.8M17.4 14.3l3.1.8"/></symbol>
+  <symbol id="i-mood" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M6.4 14.6c1.1-1.5 2.2-1.5 3.3 0s2.2 1.5 3.3 0 2.2-1.5 3.3 0"/><circle cx="9" cy="9.6" r=".9" fill="currentColor" stroke="none"/><circle cx="15" cy="9.6" r=".9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-nausea" viewBox="0 0 24 24"><path d="M2.6 7.4c1.6-2 3.1-2 4.7 0s3.1 2 4.7 0 3.1-2 4.7 0 3.1 2 4.7 0"/><path d="M2.6 12.6c1.6-2 3.1-2 4.7 0s3.1 2 4.7 0 3.1-2 4.7 0 3.1 2 4.7 0"/><path d="M2.6 17.8c1.6-2 3.1-2 4.7 0s3.1 2 4.7 0 3.1-2 4.7 0 3.1 2 4.7 0"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.6S3.4 15 3.4 9.3A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 8.6 2.8c0 5.7-8.6 11.3-8.6 11.3Z"/><path d="M6.6 11.4h2.2l1.3-2.5 1.9 4.4 1.4-1.9h3"/></symbol>
+  <symbol id="i-anxiety" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.1"/><path d="M7.6 16.4a6.2 6.2 0 0 1 0-8.8M16.4 7.6a6.2 6.2 0 0 1 0 8.8"/><path d="M4.6 19.4a10.4 10.4 0 0 1 0-14.8M19.4 4.6a10.4 10.4 0 0 1 0 14.8"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M12 4.5s5.8 6.4 5.8 10a5.8 5.8 0 1 1-11.6 0c0-3.6 5.8-10 5.8-10Z"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3.6v11.2M7.8 10.8 12 15l4.2-4.2"/><path d="M4.6 16.4v2.2a1.8 1.8 0 0 0 1.8 1.8h11.2a1.8 1.8 0 0 0 1.8-1.8v-2.2"/></symbol>
+</svg>
+<main class="page">
+
+  <header class="intro">
+    <span class="tag">Tempra · Look &amp; feel</span>
+    <h1>Three more <em>directions</em></h1>
+    <p>The same launch screen — active flash pinned at the top, logging a new one as the main event —
+       rendered three ways. Pick a direction and we'll take it through every screen.</p>
+
+    <a class="backlink" href="ui-mocks.html">
+      <span class="sw">
+        <i style="background:#FBEDE6"></i><i style="background:#E4899B"></i>
+        <i style="background:#BE4A70"></i><i style="background:#41182F"></i>
+      </span>
+      <span class="txt">
+        <b>Direction 0 · Apothecary</b>
+        <span>The original — blush &amp; plum, all four screens</span>
+      </span>
+      <span class="arw">→</span>
+    </a>
+  </header>
+
+  <div class="stage">
+
+    <!-- ========== A · NOCTURNE ========== -->
+    <section class="opt a">
+      <div class="opt-head">
+        <span class="n">Direction A</span>
+        <h2>Nocturne</h2>
+        <p>Dark and luminous, built for 3am. Amber light on near-black, an italic serif for warmth so it never feels like a medical device.</p>
+        <div class="swatches"><i style="background:#0C0F14"></i><i style="background:#1B2028"></i><i style="background:#F2A65A"></i><i style="background:#E5674E"></i><i style="background:#EAE3D9"></i></div>
+      </div>
+
+      <div class="dev"><div class="scr">
+        <div class="island"></div>
+        <div class="sysbar"><span class="brand">Tempra</span><span>3:02</span></div>
+
+        <div class="ribbon">
+          <span><b class="t">07:12</b><span class="s">Active since 2:55 · Int 5</span></span>
+          <button>End it</button>
+        </div>
+
+        <div class="hd">
+          <p class="k">New entry</p>
+          <h3>How does this <em>one feel?</em></h3>
+          <p>Starting a new flash closes the active one.</p>
+        </div>
+
+        <div class="body">
+          <div class="blk">
+            <p class="lab">Intensity</p>
+            <div class="gauge"><span class="val">5<small>/10</small></span><span class="word">Rising</span></div>
+            <input class="slider" type="range" min="1" max="10" step="1" value="5" aria-label="Intensity from 1 to 10" style="--pct:44%">
+            <div class="ticks"></div>
+            <div class="key"><span>Barely there</span><span>Overwhelming</span></div>
+          </div>
+
+          <div class="blk">
+            <p class="lab">What came with it <u>2</u></p>
+            <div class="grid">
+              <button class="on"><svg><use href="#i-sweat"/></svg>Sweating</button>
+              <button><svg><use href="#i-chills"/></svg>Chills</button>
+              <button class="on"><svg><use href="#i-mood"/></svg>Mood<br>changes</button>
+              <button><svg><use href="#i-nausea"/></svg>Nausea</button>
+              <button><svg><use href="#i-heart"/></svg>Heart<br>racing</button>
+              <button><svg><use href="#i-anxiety"/></svg>Anxiety</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cta"><button class="go">Begin flash · 3:02 AM</button></div>
+
+        <nav class="nav">
+          <a class="on" href="#"><svg><use href="#i-log"/></svg>Log</a>
+          <a href="#"><svg><use href="#i-history"/></svg>History</a>
+          <a href="#"><svg><use href="#i-export"/></svg>Export</a>
+        </nav>
+        <div class="homebar"><i></i></div>
+      </div></div>
+    </section>
+
+    <!-- ========== B · MERIDIAN ========== -->
+    <section class="opt b">
+      <div class="opt-head">
+        <span class="n">Direction B</span>
+        <h2>Meridian</h2>
+        <p>Clinical and precise. Ruled paper, monospaced figures, deep teal. Reads like a record you'd hand a doctor without apology.</p>
+        <div class="swatches"><i style="background:#FBFBF9"></i><i style="background:#EDF2EC"></i><i style="background:#0F6E62"></i><i style="background:#151E1A"></i><i style="background:#D6DBD5"></i></div>
+      </div>
+
+      <div class="dev"><div class="scr">
+        <div class="island"></div>
+        <div class="sysbar"><span class="brand">Tempra</span><span>09:41 · 26.07</span></div>
+
+        <div class="ribbon">
+          <span><b class="t">00:07:12</b><span class="s">Active 09:34 · int 4</span></span>
+          <button>End</button>
+        </div>
+
+        <div class="hd">
+          <p class="k">Entry 143 · new</p>
+          <h3>Record a <em>new episode</em></h3>
+          <p>Opening a new entry closes the active one as superseded.</p>
+        </div>
+
+        <div class="body">
+          <div class="blk">
+            <p class="lab">Intensity</p>
+            <div class="gauge"><span class="val">04<small>/10</small></span><span class="word">Moderate</span></div>
+            <input class="slider" type="range" min="1" max="10" step="1" value="4" aria-label="Intensity from 1 to 10" style="--pct:34%">
+            <div class="ticks"></div>
+            <div class="key"><span>01 minimal</span><span>10 severe</span></div>
+          </div>
+
+          <div class="blk">
+            <p class="lab">Symptoms <u>2 selected</u></p>
+            <div class="grid">
+              <button class="on"><svg><use href="#i-sweat"/></svg>Sweating</button>
+              <button><svg><use href="#i-chills"/></svg>Chills</button>
+              <button class="on"><svg><use href="#i-mood"/></svg>Mood<br>changes</button>
+              <button><svg><use href="#i-nausea"/></svg>Nausea</button>
+              <button><svg><use href="#i-heart"/></svg>Heart<br>racing</button>
+              <button><svg><use href="#i-anxiety"/></svg>Anxiety</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cta"><button class="go">Start entry</button></div>
+
+        <nav class="nav">
+          <a class="on" href="#"><svg><use href="#i-log"/></svg>Log</a>
+          <a href="#"><svg><use href="#i-history"/></svg>History</a>
+          <a href="#"><svg><use href="#i-export"/></svg>Export</a>
+        </nav>
+        <div class="homebar"><i></i></div>
+      </div></div>
+    </section>
+
+    <!-- ========== C · MARIGOLD ========== -->
+    <section class="opt c">
+      <div class="opt-head">
+        <span class="n">Direction C</span>
+        <h2>Marigold</h2>
+        <p>Warm, chunky and unbothered. Hard ink outlines, offset shadows, big confident type. Treats the whole thing with humour rather than hush.</p>
+        <div class="swatches"><i style="background:#FFF3DF"></i><i style="background:#E8A020"></i><i style="background:#C4451F"></i><i style="background:#6E7538"></i><i style="background:#2B1608"></i></div>
+      </div>
+
+      <div class="dev"><div class="scr">
+        <div class="island"></div>
+        <div class="sysbar"><span class="brand">Tempra</span><span>9:41</span></div>
+
+        <div class="ribbon">
+          <span><b class="t">07:12</b><span class="s">Going since 9:34 · Int 4</span></span>
+          <button>End it</button>
+        </div>
+
+        <div class="hd">
+          <p class="k">New one</p>
+          <h3>How's <em>this one?</em></h3>
+          <p>Start a new one and we'll close the old.</p>
+        </div>
+
+        <div class="body">
+          <div class="blk">
+            <p class="lab">Intensity</p>
+            <div class="gauge"><span class="val">4<small>/10</small></span><span class="word">Rising</span></div>
+            <input class="slider" type="range" min="1" max="10" step="1" value="4" aria-label="Intensity from 1 to 10" style="--pct:34%">
+            <div class="ticks"></div>
+            <div class="key"><span>Meh</span><span>Furnace</span></div>
+          </div>
+
+          <div class="blk">
+            <p class="lab">Came with it <u>2</u></p>
+            <div class="grid">
+              <button class="on"><svg><use href="#i-sweat"/></svg>Sweating</button>
+              <button><svg><use href="#i-chills"/></svg>Chills</button>
+              <button class="on"><svg><use href="#i-mood"/></svg>Mood<br>swings</button>
+              <button><svg><use href="#i-nausea"/></svg>Nausea</button>
+              <button><svg><use href="#i-heart"/></svg>Heart<br>racing</button>
+              <button><svg><use href="#i-anxiety"/></svg>Anxiety</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cta"><button class="go">Begin flash</button></div>
+
+        <nav class="nav">
+          <a class="on" href="#"><svg><use href="#i-log"/></svg>Log</a>
+          <a href="#"><svg><use href="#i-history"/></svg>History</a>
+          <a href="#"><svg><use href="#i-export"/></svg>Export</a>
+        </nav>
+        <div class="homebar"><i></i></div>
+      </div></div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+// Shared mock interactivity across all three directions.
+const WORDS_STD={1:'Barely there',2:'Barely there',3:'Mild',4:'Rising',5:'Rising',6:'Strong',7:'Strong',8:'Severe',9:'Severe',10:'Overwhelming'};
+const WORDS_CLIN={1:'Minimal',2:'Minimal',3:'Mild',4:'Moderate',5:'Moderate',6:'Marked',7:'Marked',8:'Severe',9:'Severe',10:'Extreme'};
+const WORDS_FUN={1:'Barely',2:'Barely',3:'Warm',4:'Rising',5:'Toasty',6:'Hot',7:'Hot',8:'Roasting',9:'Roasting',10:'Furnace'};
+
+document.querySelectorAll('.slider').forEach(sl=>{
+  const dir=sl.closest('.opt');
+  const clinical=dir.classList.contains('b');
+  const words=clinical?WORDS_CLIN:(dir.classList.contains('c')?WORDS_FUN:WORDS_STD);
+  const blk=sl.closest('.blk');
+  const val=blk.querySelector('.gauge .val');
+  const word=blk.querySelector('.gauge .word');
+  const ticks=blk.querySelector('.ticks');
+
+  if(ticks && !ticks.children.length){
+    for(let i=1;i<=10;i++){
+      const s=document.createElement('span');
+      s.textContent=clinical?String(i).padStart(2,'0'):i;
+      ticks.appendChild(s);
+    }
+  }
+  const paint=()=>{
+    const n=+sl.value;
+    sl.style.setProperty('--pct',((n-1)/9*100)+'%');
+    if(val) val.innerHTML=(clinical?String(n).padStart(2,'0'):n)+'<small>/10</small>';
+    if(word) word.textContent=words[n];
+    if(ticks) [...ticks.children].forEach((s,i)=>s.classList.toggle('on',i+1===n));
+  };
+  sl.addEventListener('input',paint);
+  paint();
+});
+
+document.querySelectorAll('.grid').forEach(g=>{
+  const count=g.closest('.blk').querySelector('.lab u');
+  const sync=()=>{
+    if(!count) return;
+    const n=g.querySelectorAll('button.on').length;
+    count.textContent=g.closest('.opt').classList.contains('b') ? n+' selected' : String(n);
+  };
+  g.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{b.classList.toggle('on');sync();}));
+});
+
+document.querySelectorAll('.ribbon .t').forEach(t=>{
+  const long=t.textContent.length>5;
+  let s=7*60+12;
+  setInterval(()=>{
+    s++;
+    const m=String(Math.floor(s/60)).padStart(2,'0'), ss=String(s%60).padStart(2,'0');
+    t.textContent = long ? '00:'+m+':'+ss : m+':'+ss;
+  },1000);
+});
+</script>
+</body>
+</html>

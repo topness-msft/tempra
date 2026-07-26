@@ -1,0 +1,28 @@
+{
+  "name": "tempra",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11"
+  },
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/web",
+    "e2e"
+  ],
+  "scripts": {
+    "build": "npm run build -w @tempra/shared && npm run build -w @tempra/web && npm run build -w @tempra/server",
+    "dev": "npm run dev -w @tempra/server",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b packages/shared packages/server packages/web",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}

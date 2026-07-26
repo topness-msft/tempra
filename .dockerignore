@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/dist
+**/dist-types
+.git
+.tools
+data
+*.db
+*.db-shm
+*.db-wal
+design
+e2e
+test-results
+playwright-report
+coverage
+.env
+.env.*

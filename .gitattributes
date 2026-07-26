@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Shell scripts run inside a Linux container. CRLF here produces a "bad
+# interpreter" failure at boot, so pin them regardless of platform settings.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+
+*.png binary
+*.ico binary
+*.woff2 binary
