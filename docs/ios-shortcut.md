@@ -73,7 +73,17 @@ together because each one surfaces in the context the others miss:
    so at 7am there is no record of what happened at 3am other than the app
    itself. A notification is still sitting there.
 
+   **Turn off its Play Sound toggle.** Notifications chime by default, which is
+   a sound in a dark room at exactly the hour this shortcut exists for. Silent,
+   it still lands in Notification Center.
+
 Put them in that order, last in the shortcut.
+
+These three do not talk over each other. Siri's spoken reply is reserved for the
+shortcut's *result*, so only Show Result is voiced; the notification stays
+visual even with AirPods in, because Announce Notifications does not cover
+Shortcuts-generated notifications. You get the line spoken once and a silent
+copy that keeps.
 
 For the voice path at night, don't build a second silent shortcut — iOS already
 has the control. Settings → **Siri & Search** → **Siri Responses** → turn on
