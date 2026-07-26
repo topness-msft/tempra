@@ -56,11 +56,45 @@ Tap it once to test. It should say "Done" and nothing else. Open Tempra and the
 flash should be at the top of the screen with a running timer. Delete that test
 entry from the app afterwards.
 
+### Confirming it landed
+
+The 3am question isn't "did it work", it's *"do I tap again?"* — and tapping
+again logs a phantom flash. Three actions answer it, and they're worth adding
+together because each one surfaces in the context the others miss:
+
+1. **Vibrate Device** — a buzz you feel. This is the one that matters for Back
+   Tap and the widget, where nothing else has made a sound or shown a light. It
+   also survives *Show When Run* being off.
+2. **Show Result**, text `Flash logged, [Current Date].` — Siri **speaks** this
+   when the shortcut was invoked by voice, and shows a brief overlay when it was
+   tapped. Worth having precisely because she has already spoken out loud to
+   trigger it; a spoken reply adds nothing to a room that just heard her.
+3. **Show Notification** — the only one that *persists*. Show Result vanishes,
+   so at 7am there is no record of what happened at 3am other than the app
+   itself. A notification is still sitting there.
+
+Put them in that order, last in the shortcut.
+
+For the voice path at night, don't build a second silent shortcut — iOS already
+has the control. Settings → **Siri & Search** → **Siri Responses** → turn on
+*Prefer Silent Responses*, and Siri shows text instead of speaking whenever the
+ring switch is silenced. The phone being on silent overnight then handles it
+without you maintaining two shortcuts that can drift apart.
+
+Two actions to avoid here: **Show Alert** blocks until dismissed, which destroys
+the one-tap property and stalls Siri mid-conversation; **Speak Text** always
+talks, including when she tapped the widget at 3am rather than speaking.
+
 ### Silencing the confirmation banner
 
 Settings → **Shortcuts** → **Advanced** → turn off *Show When Run*. At night, a
 full-width banner is not what you want. Leave it on if the confirmation is
 reassuring.
+
+Note this only silences shortcuts that ask nothing. Anything containing Show
+Result, Choose from Menu or Ask for Input needs the screen and will surface
+regardless — which is why the plain **Log hot flash** can run invisibly and the
+detail version in section 3 cannot.
 
 ---
 
