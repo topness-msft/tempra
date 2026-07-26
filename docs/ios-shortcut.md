@@ -13,9 +13,10 @@ shortcut that asks a question is a shortcut that doesn't get finished at 3am.
 
 ## What you need
 
-Your API token: the value of the `TEMPRA_API_TOKEN` secret. Fly secrets are
-write-only, so you can't read it back with `flyctl`; it's in `.tmp/secrets.json`
-in this repo, which is gitignored. Below it's written as `YOUR_API_TOKEN`.
+Your API token: the value of the `TEMPRA_API_TOKEN` secret you set when you
+deployed. Fly secrets are write-only, so `flyctl` can't read it back to you —
+keep your own copy somewhere safe at the moment you set it. Below it's written
+as `YOUR_API_TOKEN`.
 
 Treat it like a password. Anyone holding it can read and write the whole log.
 

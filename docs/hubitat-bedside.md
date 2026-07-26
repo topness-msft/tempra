@@ -30,8 +30,9 @@ invent a number.
 
 - A button device already paired (Lutron Aurora, Zooz ZEN34, SmartThings button —
   anything that fires a *pushed* event)
-- Your bedside secret: the value of the `BEDSIDE_SECRET` Fly secret, in
-  `.tmp/secrets.json` (gitignored). Written below as `YOUR_BEDSIDE_SECRET`.
+- Your bedside secret: the value of the `BEDSIDE_SECRET` Fly secret you set when
+  you deployed. Fly can't read it back to you, so keep your own copy at the time
+  you set it. Written below as `YOUR_BEDSIDE_SECRET`.
 - Your app's address: your Fly app's hostname. Written below as
   `https://your-app.fly.dev`.
 
