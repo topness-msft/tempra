@@ -47,21 +47,47 @@ someone guessing, but don't paste it anywhere public.
 **Apps** → **Rule Machine** → **Create New Rule**.
 
 - **Name**: `Hot flash — bedside button`
-- **Trigger Events**: your button → **Button 1 pushed**
 
-**Actions to Run**, in this order:
+### Setting the trigger
+
+Rule Machine asks for a *capability* before it will show you any devices, which is
+the step that trips people up — your button won't be in the device list until you
+tell it you're looking for a button.
+
+1. Next to **Trigger Events**, tap **Click to set**.
+2. **Select capability for new Event Trigger** → choose **Button**.
+3. **Button Device** → pick your button.
+4. **Button number** → `1` (or whichever the device reports; see below).
+5. Event type → **pushed**.
+6. Tap **Done with this Trigger Event**.
+
+If your button isn't in the device list at step 3, its driver doesn't expose the
+button capability. Open the device in **Devices**, check the **Type** is a button
+driver rather than a generic one, and hit **Configure**.
+
+Not sure which button number a press sends? Open the device page, then the hub's
+**Logs** in a second tab, and press it. The event shows the number.
+
+### Setting the actions
+
+Under **Actions to Run**, tap **Click to set**, then pick from the **Select Action
+to Add** dropdown. It's a long list — the HTTP action is worded
+**"Send HTTP Request..."**, not "HTTP Request" or "POST", which is why it's easy to
+scroll past.
+
+Add these in order:
 
 1. Whatever cools the bed. Set the ChiliPad / BedJet / Ooler / cooling fan to its
    overnight setting. Put this **first** — it's the part she can feel, and it
    should not wait on a web request.
 
-2. **HTTP Request**:
-   - Action: **POST**
+2. **Send HTTP Request...**:
+   - Method / Action: **POST**
    - URL:
      ```
      https://tempra.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET
      ```
-   - Body type / Content type: **application/json**
+   - Content type: **application/json**
    - Body:
      ```json
      {"kind":"press"}
@@ -69,6 +95,10 @@ someone guessing, but don't paste it anywhere public.
 
    The body is optional — an empty POST is treated as a press — but sending it
    explicitly means the log says what happened rather than relying on a default.
+
+   If there's no content type field, your hub firmware predates it. Update the
+   platform; older Rule Machine builds sent everything as form-encoded, which this
+   endpoint won't parse as JSON.
 
 3. Optional: a very brief LED or dim-light acknowledgement, so a press that did
    nothing is distinguishable from a press that worked. Keep it under a second and
@@ -97,9 +127,10 @@ been broken for a week". Both look like silence, and only one of them is good ne
 **Create New Rule**:
 
 - **Name**: `Hot flash — bedside heartbeat`
-- **Trigger Events**: **Certain Time** → **Periodic** → every hour
-- **Actions to Run**: **HTTP Request**
-  - Action: **POST**
+- **Trigger Events**: **Click to set** → capability **Certain Time** → **Periodic**
+  → every hour
+- **Actions to Run**: **Send HTTP Request...**
+  - Method: **POST**
   - URL: the same `https://tempra.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET`
   - Content type: **application/json**
   - Body:
@@ -143,6 +174,9 @@ A press returns `{"ok":true,"kind":"press","action":"started","flash":{...}}`.
 
 | What you see | What it means |
 | --- | --- |
+| Can't find the HTTP action | It's worded **"Send HTTP Request..."** in the Select Action to Add list, not "HTTP Request" or "POST". |
+| Button isn't in the device list | You skipped the capability picker — choose **Button** first. If it's still missing, the device's driver doesn't expose the button capability. |
+| No content type field | Hub firmware is too old. Update the platform, or the body goes out form-encoded and won't parse as JSON. |
 | `404` | Wrong secret, or a typo in the URL. The endpoint returns 404 rather than 401 so that probing it tells an attacker nothing. |
 | `429` | Rate limited — you're testing faster than a human presses buttons. Wait a minute. |
 | `{"action":"debounced"}` | Working as designed. Under 60s since the last press. |
