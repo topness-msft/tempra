@@ -28,7 +28,6 @@ invent a number.
 
 ## What you need
 
-- Hubitat with **Rule Machine** installed
 - A button device already paired (Lutron Aurora, Zooz ZEN34, SmartThings button —
   anything that fires a *pushed* event)
 - Your bedside secret: the value of the `BEDSIDE_SECRET` Fly secret, in
@@ -39,6 +38,17 @@ Machine's HTTP action can't attach headers. Which means **the URL itself is the
 credential** — anyone who has it can log flashes. It's random and long, and the
 endpoint returns a flat `404` for a wrong secret so it gives nothing away to
 someone guessing, but don't paste it anywhere public.
+
+## First: install Rule Machine
+
+Rule Machine ships with the hub but is not installed out of the box.
+
+**Apps** → **Add Built-In App** (top right) → scroll to **Rule Machine** → tap it.
+
+It now sits in your **Apps** list for good. Every rule you write lives inside that
+one app instance, so this is a one-time step — both rules below start from
+**Apps** → **Rule Machine** → **Create New Rule**. If Rule Machine is already in
+your Apps list, skip this.
 
 ---
 
