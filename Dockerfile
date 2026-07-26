@@ -11,7 +11,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
 COPY packages/web/package.json packages/web/
 COPY e2e/package.json e2e/
-RUN npm ci --ignore-scripts=false --workspaces --include-workspace-root
+RUN npm ci
 
 # ---- build: compile shared, web and server --------------------------------
 FROM deps AS build
@@ -49,7 +49,11 @@ COPY --from=build /app/packages/server/dist ./packages/server/dist
 COPY --from=build /app/packages/web/dist ./packages/web/dist
 COPY ops/litestream.yml /etc/litestream.yml
 COPY ops/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Editing this repo from Windows reintroduces CRLF, which makes the kernel look
+# for an interpreter named "/bin/sh\r" and fail with a misleading "no such file
+# or directory". Strip it here so the image cannot inherit that bug.
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
+    && chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=4s --start-period=10s --retries=3 \

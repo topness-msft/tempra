@@ -2,6 +2,9 @@ node_modules
 **/node_modules
 **/dist
 **/dist-types
+# dist is excluded above, so a copied-in tsbuildinfo would convince `tsc -b`
+# that its outputs are already current and emit nothing.
+**/*.tsbuildinfo
 .git
 .tools
 data
@@ -9,7 +12,10 @@ data
 *.db-shm
 *.db-wal
 design
-e2e
+e2e/**
+# npm ci validates every workspace manifest against the lockfile, so this one
+# file has to reach the build even though the tests themselves do not.
+!e2e/package.json
 test-results
 playwright-report
 coverage
