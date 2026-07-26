@@ -1,7 +1,14 @@
 dbs:
   - path: ${DATA_DIR}/${DB_FILE}
     replicas:
-      - url: ${REPLICA_URL}
+      # Tigris is S3-compatible but is not AWS, so the endpoint and region are
+      # stated explicitly rather than inferred from a bucket URL. Every value
+      # here is set as a secret by `fly storage create`.
+      - type: s3
+        bucket: ${BUCKET_NAME}
+        path: tempra
+        endpoint: ${AWS_ENDPOINT_URL_S3}
+        region: ${AWS_REGION}
         # A hot flash log is small and low-churn; a 60s sync interval keeps the
         # worst-case data loss window to a minute while staying inside the
         # Tigris free tier on request count.

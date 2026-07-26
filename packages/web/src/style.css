@@ -157,7 +157,9 @@ a.btn {
 
 .login .wordmark {
   font-family: var(--mono);
-  font-weight: 300;
+  /* 400 is the lightest mono weight bundled; asking for 300 made the browser
+     synthesise a fake light face, which is visibly thinner and blurrier. */
+  font-weight: 400;
   font-size: 52px;
   line-height: 1;
   letter-spacing: 0.02em;
