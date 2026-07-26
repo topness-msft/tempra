@@ -39,16 +39,23 @@ credential** — anyone who has it can log flashes. It's random and long, and th
 endpoint returns a flat `404` for a wrong secret so it gives nothing away to
 someone guessing, but don't paste it anywhere public.
 
-## First: install Rule Machine
+## First: check Rule Machine is installed
 
-Rule Machine ships with the hub but is not installed out of the box.
+Look in **Apps** in the sidebar. If **Rule Machine** is listed, you're done — skip
+to Rule 1.
 
-**Apps** → **Add Built-In App** (top right) → scroll to **Rule Machine** → tap it.
+If it isn't there: **Apps** → **Add Built-In App** → **Rule Machine**.
 
-It now sits in your **Apps** list for good. Every rule you write lives inside that
-one app instance, so this is a one-time step — both rules below start from
-**Apps** → **Rule Machine** → **Create New Rule**. If Rule Machine is already in
-your Apps list, skip this.
+**If Rule Machine isn't in the Add Built-In App list either, that means it's
+already installed.** Hubitat hides built-in apps once they've been added, so a
+missing entry means present, not absent — which is the opposite of what the screen
+implies. A tell-tale sign: if Rule Machine, Basic Rule, Simple Automation, Button
+Controller and Notifications are *all* absent from that list, they're all installed
+and you should be looking at the Apps page instead.
+
+Either way this is a one-time step. Every rule lives inside that single app
+instance, so both rules below start from **Apps** → **Rule Machine** →
+**Create New Rule**.
 
 ---
 
