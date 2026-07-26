@@ -136,6 +136,107 @@ describe('export', () => {
   });
 });
 
+describe('day check-ins', () => {
+  const put = (date: string, payload: unknown) =>
+    app.inject({ method: 'PUT', url: `/api/days/${date}`, payload });
+
+  it('creates a check-in and reads it back', async () => {
+    const res = await put('2026-07-26', {
+      symptoms: [{ symptom: 'tinnitus', severity: 2 }],
+      note: 'worse in the quiet',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().date).toBe('2026-07-26');
+
+    const got = await app.inject({ method: 'GET', url: '/api/days/2026-07-26' });
+    expect(got.json().symptoms).toEqual([{ symptom: 'tinnitus', severity: 2 }]);
+  });
+
+  it('is idempotent, because the date is the identity', async () => {
+    // The offline outbox replays a queued check-in until it lands. Doing that
+    // twice must not produce two check-ins for one day.
+    const body = { symptoms: [{ symptom: 'sleep', severity: 3 }] };
+    await put('2026-07-26', body);
+    await put('2026-07-26', body);
+    const list = await app.inject({ method: 'GET', url: '/api/days' });
+    expect(list.json().days).toHaveLength(1);
+  });
+
+  it('rejects an instant where a calendar date belongs', async () => {
+    const res = await put('2026-07-26T03:14:00Z', { symptoms: [] });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('rejects an unknown symptom and an impossible severity', async () => {
+    expect((await put('2026-07-26', { symptoms: [{ symptom: 'vibes', severity: 1 }] })).statusCode)
+      .toBe(400);
+    expect(
+      (await put('2026-07-26', { symptoms: [{ symptom: 'tinnitus', severity: 7 }] })).statusCode,
+    ).toBe(400);
+  });
+
+  it('answers 204 when the check-in is emptied out', async () => {
+    await put('2026-07-26', { symptoms: [{ symptom: 'tinnitus', severity: 2 }] });
+    const res = await put('2026-07-26', { symptoms: [], note: null });
+    expect(res.statusCode).toBe(204);
+    expect((await app.inject({ method: 'GET', url: '/api/days/2026-07-26' })).statusCode).toBe(404);
+  });
+
+  it('merges through PATCH without wiping what is already there', async () => {
+    // This is the Siri path: "log tinnitus" knows one thing.
+    await put('2026-07-26', { symptoms: [{ symptom: 'sleep', severity: 3 }] });
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/days/2026-07-26',
+      payload: { symptoms: [{ symptom: 'tinnitus', severity: 1 }] },
+    });
+    expect(res.json().symptoms).toHaveLength(2);
+  });
+
+  it('accepts the plain object shape an iOS Shortcut can actually build', async () => {
+    await put('2026-07-26', { symptoms: [{ symptom: 'sleep', severity: 3 }] });
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/days/2026-07-26',
+      payload: { symptoms: { tinnitus: 2 } },
+    });
+    expect(res.json().symptoms).toEqual([
+      { symptom: 'sleep', severity: 3 },
+      { symptom: 'tinnitus', severity: 2 },
+    ]);
+  });
+
+  it('unsays a symptom when a PATCH gives it a null severity', async () => {
+    await put('2026-07-26', {
+      symptoms: [
+        { symptom: 'sleep', severity: 3 },
+        { symptom: 'tinnitus', severity: 2 },
+      ],
+    });
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/days/2026-07-26',
+      payload: { symptoms: { tinnitus: null } },
+    });
+    expect(res.json().symptoms).toEqual([{ symptom: 'sleep', severity: 3 }]);
+  });
+
+  it('rides along with the app state so history can draw the bands', async () => {
+    await put('2026-07-26', { symptoms: [{ symptom: 'tinnitus', severity: 2 }] });
+    const res = await app.inject({ method: 'GET', url: '/api/state' });
+    expect(res.json().days).toHaveLength(1);
+  });
+
+  it('exports as its own spreadsheet, one row per day', async () => {
+    await put('2026-07-26', { symptoms: [{ symptom: 'tinnitus', severity: 2 }] });
+    const res = await app.inject({ method: 'GET', url: '/api/export-days.csv' });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-disposition']).toMatch(/tempra-days-.*\.csv/);
+    expect(res.body.split('\r\n')[0]).toContain('tinnitus');
+    expect(res.body).toContain('"Moderate"');
+  });
+});
+
 describe('bedside webhook', () => {
   it('rejects a wrong secret as 404, revealing nothing', async () => {
     const res = await post('/hooks/bedside/not-the-secret', {});

@@ -381,6 +381,237 @@ a.btn {
   opacity: 0.75;
 }
 
+/* ---------- day check-ins ---------- */
+
+/* A fourth destination. The tab bar is the only part of the Log screen that
+   changed when day check-ins arrived, and a tab is a destination rather than a
+   decision — nothing was added between a half-awake thumb and "Begin flash". */
+.tabs {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Sits where the running-flash ribbon sits on the Log screen: it is the context
+   everything below it belongs to. */
+.daypick {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+.daypick button {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--plum);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.daypick button[disabled] {
+  opacity: 0.32;
+}
+.daypick .lbl {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.daypick .lbl b {
+  font-size: 16px;
+  font-weight: 600;
+}
+.daypick .lbl span {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.dayrow {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dayrow:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+.dayrow .nm {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 9px;
+}
+.dayrow .nm svg {
+  width: 21px;
+  height: 21px;
+  stroke: var(--berry);
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Says what this row currently holds, including "Not said" — the state that is
+   easiest to mistake for a zero. */
+.dayrow .nm i {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--plum-soft);
+  font-weight: 700;
+  opacity: 0.55;
+}
+
+/* Four steps rather than a ten-point slider. She is estimating either way, and
+   a finer scale would imply a precision that is not there while making every
+   target too small to hit in the dark. */
+.scale {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+.scale button {
+  min-height: 46px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--plum-soft);
+  cursor: pointer;
+  transition:
+    background 0.25s,
+    color 0.25s,
+    border-color 0.25s;
+}
+.scale button[aria-pressed='true'] {
+  color: #fff;
+  border-color: transparent;
+}
+.scale button.s0[aria-pressed='true'] {
+  background: var(--sage);
+}
+.scale button.s1[aria-pressed='true'] {
+  background: #8a6a22;
+}
+.scale button.s2[aria-pressed='true'] {
+  background: var(--rose);
+  color: var(--plum);
+}
+.scale button.s3[aria-pressed='true'] {
+  background: var(--berry);
+}
+
+/* There is no submit button, so the absence of one has to be explained. */
+.savedline {
+  flex: none;
+  margin: 0 16px 8px;
+  font-size: 13px;
+  color: var(--plum-soft);
+  text-align: center;
+}
+.savedline b {
+  color: var(--sage);
+  font-weight: 700;
+}
+
+/* ---------- the day band in history ---------- */
+
+/* A day-level state has no time, so it cannot be interleaved with timed rows
+   without pretending it has one. It becomes the conditions at the head of the
+   day, with the flashes as what happened inside them. */
+.dayband {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 13px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed var(--gold-line);
+}
+.dayband .bl {
+  width: 100%;
+  margin: 0 0 3px;
+  font-size: 13px;
+  color: var(--plum-soft);
+  font-weight: 600;
+}
+.dayband .none {
+  margin: 0;
+  font-size: 14px;
+  color: var(--plum-soft);
+  font-style: italic;
+}
+.dayband .daynote {
+  width: 100%;
+  margin: 6px 0 0;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+.chip.s0 {
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+.chip.s1 {
+  background: rgba(199, 154, 62, 0.18);
+  color: #7a5c1a;
+}
+.chip.s2 {
+  background: rgba(228, 137, 155, 0.26);
+  color: #9a3454;
+}
+.chip.s3 {
+  background: var(--berry);
+  color: #fff;
+}
+
+.quiet-day {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--plum-soft);
+  font-style: italic;
+}
+
+/* The statistics split rather than merge: there is no honest single number
+   spanning an eleven-minute episode and a day of tinnitus. */
+.statshead {
+  margin: 16px 4px 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

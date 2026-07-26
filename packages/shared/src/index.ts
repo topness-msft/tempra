@@ -117,6 +117,195 @@ export const updateFlashSchema = z.object({
   sketch: sketchSchema.nullish(),
 });
 
+/**
+ * The other half of menopause: symptoms that are not episodes.
+ *
+ * A flash starts at a knowable moment. Tinnitus does not — it was there on
+ * waking and it is still there now. Asking when it began produces an invented
+ * answer, so these are recorded as the state of a *day* rather than as events
+ * with a fabricated start, end and duration.
+ *
+ * Order is display order; the first six are shown by default and the rest live
+ * behind "more". The vocabulary is deliberately separate from the flash one:
+ * `headache` during a flash and `headache` all Tuesday are different
+ * observations and must not be averaged together.
+ */
+export const DAY_SYMPTOMS = [
+  'sleep',
+  'fatigue',
+  'brain_fog',
+  'low_mood',
+  'tinnitus',
+  'joint_pain',
+  'anxiety',
+  'headache',
+  'dryness',
+  'skin',
+] as const;
+
+export type DaySymptom = (typeof DAY_SYMPTOMS)[number];
+
+export const DAY_SYMPTOM_LABELS: Record<DaySymptom, string> = {
+  // "Broken sleep", not "Sleep": with a clear-to-severe scale, "Sleep: severe"
+  // has to mean severely disrupted, and the label is what makes that obvious.
+  sleep: 'Broken sleep',
+  fatigue: 'Fatigue',
+  brain_fog: 'Brain fog',
+  low_mood: 'Low mood',
+  tinnitus: 'Tinnitus',
+  joint_pain: 'Joint pain',
+  anxiety: 'Anxiety',
+  headache: 'Headache',
+  dryness: 'Dryness',
+  skin: 'Skin crawling',
+};
+
+/**
+ * Four steps, not ten. She is estimating either way, and a ten-point scale
+ * invites a precision that is not there — as well as making each target too
+ * small to hit. `0` is "Clear", which is a real observation she tapped; a
+ * symptom she never touched is simply absent, and absent is not zero.
+ */
+export const SEVERITY_LABELS = ['Clear', 'Mild', 'Moderate', 'Severe'] as const;
+export type Severity = 0 | 1 | 2 | 3;
+
+export const severityWord = (severity: number): string =>
+  SEVERITY_LABELS[severity] ?? String(severity);
+
+export const daySymptomSchema = z.enum(DAY_SYMPTOMS);
+export const severitySchema = z.number().int().min(0).max(3);
+
+/**
+ * A local calendar date, YYYY-MM-DD. Deliberately not an instant: a day
+ * check-in belongs to the day she lived, not to a moment inside it, and
+ * converting it through UTC would slide it across midnight for half the world.
+ */
+export const localDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .describe('local calendar date, YYYY-MM-DD');
+
+export const daySymptomEntrySchema = z.object({
+  symptom: daySymptomSchema,
+  severity: severitySchema,
+});
+
+export type DaySymptomEntry = z.infer<typeof daySymptomEntrySchema>;
+
+export const dayLogSchema = z.object({
+  date: localDateSchema,
+  symptoms: z.array(daySymptomEntrySchema),
+  note: z.string().max(2000).nullable(),
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+});
+
+export type DayLog = z.infer<typeof dayLogSchema>;
+
+/**
+ * The whole state of a day. `symptoms` replaces the set outright, which is what
+ * makes the write an upsert keyed on the date — and therefore safe to replay
+ * from the offline outbox as many times as it takes, with no client id and no
+ * risk of a duplicate check-in.
+ */
+export const putDayLogSchema = z.object({
+  symptoms: z.array(daySymptomEntrySchema).max(DAY_SYMPTOMS.length),
+  note: z.string().max(2000).nullish(),
+});
+
+export type PutDayLogInput = z.infer<typeof putDayLogSchema>;
+
+/**
+ * Merge a few symptoms into a day without touching the rest. This is the Siri
+ * path: "log tinnitus" knows one thing and must not wipe what the app recorded
+ * this morning.
+ *
+ * `symptoms` is accepted in two shapes. The app sends the same array it sends
+ * to PUT; a shortcut sends a plain `{ "tinnitus": 2 }` object, because that is
+ * the only shape the iOS Shortcuts body editor can build without contortions.
+ * The object form also allows `null`, meaning "take this back to unrecorded",
+ * which the array form has no way to say.
+ */
+const patchEntrySchema = z.object({
+  symptom: daySymptomSchema,
+  severity: severitySchema.nullable(),
+});
+
+export const patchDayLogSchema = z.object({
+  symptoms: z
+    .union([
+      z.array(patchEntrySchema).max(DAY_SYMPTOMS.length),
+      z
+        .record(daySymptomSchema, severitySchema.nullable())
+        .transform((map) =>
+          Object.entries(map).map(([symptom, severity]) => ({
+            symptom: symptom as DaySymptom,
+            severity: (severity ?? null) as Severity | null,
+          })),
+        ),
+    ])
+    .optional(),
+  note: z.string().max(2000).nullish(),
+});
+
+export type PatchDayLogInput = z.infer<typeof patchDayLogSchema>;
+export type PatchDaySymptomEntry = z.infer<typeof patchEntrySchema>;
+
+/** The local calendar date an instant falls on, as seen from this device. */
+export const localDateOf = (date: Date = new Date()): string => {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/** Midnight local time on a YYYY-MM-DD, for formatting. Never parse it as UTC. */
+export const fromLocalDate = (date: string): Date => {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+};
+
+/** Shift a local date by whole days without tripping over DST or month ends. */
+export const shiftLocalDate = (date: string, days: number): string => {
+  const d = fromLocalDate(date);
+  d.setDate(d.getDate() + days);
+  return localDateOf(d);
+};
+
+/**
+ * A check-in with nothing in it is not a check-in. Reporting no symptoms and
+ * writing no note leaves no record, so history can say "no check-in for this
+ * day" rather than showing a blank one that reads as "nothing was wrong".
+ */
+export const isEmptyDayLog = (input: { symptoms: readonly unknown[]; note?: string | null }): boolean =>
+  input.symptoms.length === 0 && !input.note?.trim();
+
+/**
+ * Mean of the severities she actually gave. Symptoms she never mentioned are
+ * absent from the average rather than counted as zero — silence is not a score.
+ */
+export const averageSeverity = (logs: readonly DayLog[]): number | null => {
+  const all = logs.flatMap((d) => d.symptoms.map((s) => s.severity));
+  if (all.length === 0) return null;
+  return all.reduce((a, b) => a + b, 0) / all.length;
+};
+
+/** The day symptom reported on the most days, ties broken by vocabulary order. */
+export const mostReported = (logs: readonly DayLog[]): DaySymptom | null => {
+  const counts = new Map<DaySymptom, number>();
+  for (const log of logs) {
+    for (const s of log.symptoms) counts.set(s.symptom, (counts.get(s.symptom) ?? 0) + 1);
+  }
+  let best: DaySymptom | null = null;
+  let bestCount = 0;
+  for (const symptom of DAY_SYMPTOMS) {
+    const n = counts.get(symptom) ?? 0;
+    if (n > bestCount) {
+      best = symptom;
+      bestCount = n;
+    }
+  }
+  return best;
+};
+
 export const intensityWord = (intensity: number): string => {
   if (intensity <= 2) return 'Barely there';
   if (intensity <= 5) return 'Rising';

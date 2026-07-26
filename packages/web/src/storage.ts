@@ -40,7 +40,8 @@ export type PendingOp =
   | { id: string; kind: 'start'; at: string; body: Record<string, unknown> }
   | { id: string; kind: 'end'; at: string; flashId: string | null; body: Record<string, unknown> }
   | { id: string; kind: 'update'; at: string; flashId: string; body: Record<string, unknown> }
-  | { id: string; kind: 'delete'; at: string; flashId: string };
+  | { id: string; kind: 'delete'; at: string; flashId: string }
+  | { id: string; kind: 'day'; at: string; date: string; body: Record<string, unknown> };
 
 export const outbox = {
   all: (): PendingOp[] => read<PendingOp[]>(OUTBOX_KEY, []),
@@ -71,9 +72,20 @@ export const outbox = {
     write(OUTBOX_KEY, list);
     return true;
   },
+  /**
+   * Discards any queued check-in for a date so a fresh one can take its place.
+   *
+   * A day is a single upserted record, so ten taps on the same offline morning
+   * must not become ten queued writes replaying in sequence. The newest one
+   * describes the whole day, and every earlier one is already wrong.
+   */
+  dropDay: (date: string): void => {
+    const list = outbox.all();
+    const keep = list.filter((o) => !(o.kind === 'day' && o.date === date));
+    if (keep.length !== list.length) write(OUTBOX_KEY, keep);
+  },
   size: (): number => outbox.all().length,
 };
-
 export const cache = {
   get: <T>(fallback: T): T => read<T>(CACHE_KEY, fallback),
   set: (value: unknown): void => {

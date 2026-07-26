@@ -1,9 +1,12 @@
-import type { Flash } from '@tempra/shared';
-import { durationMinutes } from '@tempra/shared';
+import type { DayLog, DaySymptomEntry, Flash } from '@tempra/shared';
+import { durationMinutes, isEmptyDayLog } from '@tempra/shared';
 import { outbox, cache, grave, type PendingOp } from './storage.js';
 
 /** A flash that may not have reached the server yet. */
 export type PendingFlash = Flash & { pending?: boolean };
+
+/** A day check-in that may not have reached the server yet. */
+export type PendingDayLog = DayLog & { pending?: boolean };
 
 export interface BedsideStatus {
   lastPressAt: string | null;
@@ -14,6 +17,7 @@ export interface BedsideStatus {
 export interface AppState {
   active: PendingFlash | null;
   recent: PendingFlash[];
+  days: PendingDayLog[];
   bedside: BedsideStatus;
   insecure: boolean;
   commit: string;
@@ -22,6 +26,7 @@ export interface AppState {
 const EMPTY: AppState = {
   active: null,
   recent: [],
+  days: [],
   bedside: { lastPressAt: null, lastHeartbeatAt: null, health: 'unknown' },
   insecure: false,
   commit: 'dev',
@@ -113,6 +118,15 @@ const flushOne = async (op: PendingOp): Promise<boolean> => {
       case 'delete':
         res = await request(`/api/flashes/${op.flashId}`, { method: 'DELETE' });
         break;
+      case 'day':
+        // PUT, not POST: the record is keyed on the date, so replaying this
+        // after a partial failure re-states the day rather than logging it
+        // twice. Nothing here needs a client id.
+        res = await request(`/api/days/${op.date}`, {
+          method: 'PUT',
+          body: JSON.stringify(op.body),
+        });
+        break;
     }
     // A 4xx other than 401 means the server will never accept this operation.
     // Keeping it would block the queue forever, so drop it.
@@ -156,6 +170,7 @@ export const projectState = (base: AppState): AppState => {
 
   let active: PendingFlash | null = base.active;
   let recent: PendingFlash[] = [...base.recent];
+  let days: PendingDayLog[] = [...base.days];
 
   const retire = (flash: PendingFlash, status: Flash['status'], endedAt: string | null) => {
     const closed: PendingFlash = {
@@ -219,6 +234,28 @@ export const projectState = (base: AppState): AppState => {
         recent = recent.filter((f) => f.id !== op.flashId);
         break;
       }
+      case 'day': {
+        const body = op.body as { symptoms?: DaySymptomEntry[]; note?: string | null };
+        const symptoms = body.symptoms ?? [];
+        const note = body.note?.trim() ? body.note.trim() : null;
+        const rest = days.filter((d) => d.date !== op.date);
+        // A queued check-in that reports nothing is a queued deletion: the row
+        // has to disappear from history now, not when the server agrees.
+        days = isEmptyDayLog({ symptoms, note })
+          ? rest
+          : [
+              {
+                date: op.date,
+                symptoms,
+                note,
+                createdAt: op.at,
+                updatedAt: op.at,
+                pending: true,
+              },
+              ...rest,
+            ];
+        break;
+      }
     }
   }
 
@@ -228,7 +265,7 @@ export const projectState = (base: AppState): AppState => {
     recent = recent.filter((f) => !buried.includes(f.id));
   }
 
-  return { ...base, active, recent };
+  return { ...base, active, recent, days };
 };
 
 export const startFlash = async (body: Record<string, unknown>): Promise<boolean> =>
@@ -296,4 +333,21 @@ export const fetchHistory = async (limit = 200): Promise<Flash[]> => {
   const res = await request(`/api/flashes?limit=${limit}`);
   if (!res.ok) throw new Error(`history ${res.status}`);
   return ((await res.json()) as { flashes: Flash[] }).flashes;
+};
+
+/**
+ * Save the whole state of a day.
+ *
+ * Every tap on a severity calls this, which is deliberate: there is no submit
+ * button to forget, and no window in which a tap is on screen but not saved.
+ * The cost is bounded because a day is one upserted record — the previous
+ * queued write for the same date is discarded rather than replayed, so an
+ * offline morning of fiddling leaves exactly one entry in the outbox.
+ */
+export const saveDay = async (
+  date: string,
+  body: { symptoms: DaySymptomEntry[]; note: string | null },
+): Promise<boolean> => {
+  outbox.dropDay(date);
+  return enqueue({ id: newId(), kind: 'day', at: new Date().toISOString(), date, body });
 };

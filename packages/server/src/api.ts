@@ -3,15 +3,18 @@ import { z } from 'zod';
 import {
   createFlashSchema,
   endFlashSchema,
+  localDateSchema,
+  patchDayLogSchema,
+  putDayLogSchema,
   updateFlashSchema,
   type Flash,
 } from '@tempra/shared';
 import type { Db } from './db.js';
-import { FlashRepo } from './repo.js';
+import { DayLogRepo, FlashRepo } from './repo.js';
 import { config } from './config.js';
 import { safeEqual, verifyPassphrase } from './crypto.js';
 import { hashPassphrase } from './crypto.js';
-import { toCsv, toJsonExport } from './export.js';
+import { toCsv, toDaysCsv, toJsonExport } from './export.js';
 
 const SESSION_COOKIE = 'tempra_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365; // a year: re-auth at 3am is hostile
@@ -29,6 +32,18 @@ const listQuerySchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
 });
+
+const dayListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
+  from: localDateSchema.optional(),
+  to: localDateSchema.optional(),
+});
+
+/**
+ * How many days of check-ins ride along with the app state. History renders the
+ * bands from this, so it has to cover at least the window the flash list does.
+ */
+const STATE_DAYS = 60;
 
 export interface ApiOptions {
   db: Db;
@@ -56,6 +71,7 @@ class RateLimiter {
 
 export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promise<void> => {
   const repo = new FlashRepo(opts.db);
+  const days = new DayLogRepo(opts.db);
   const bedsideLimiter = new RateLimiter(60, 60_000);
   const loginLimiter = new RateLimiter(10, 60_000);
 
@@ -122,6 +138,7 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
     return {
       active: repo.active(),
       recent: repo.list({ limit: 20 }),
+      days: days.list({ limit: STATE_DAYS }),
       bedside: bedsideStatus(opts.db),
       insecure: !authRequired,
       commit: config.commit,
@@ -200,13 +217,87 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
     async (req, reply) => endFlash(req.params.id, req.body, reply),
   );
 
+  // ------------------------------------------------------------- day check-ins
+
+  app.get('/api/days', { preHandler: guard }, async (req, reply) => {
+    const parsed = dayListQuerySchema.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_query' });
+    return { days: days.list(parsed.data) };
+  });
+
+  app.get<{ Params: { date: string } }>(
+    '/api/days/:date',
+    { preHandler: guard },
+    async (req, reply) => {
+      if (!localDateSchema.safeParse(req.params.date).success) {
+        return reply.code(400).send({ error: 'invalid_date' });
+      }
+      const day = days.get(req.params.date);
+      if (!day) return reply.code(404).send({ error: 'not_found' });
+      return day;
+    },
+  );
+
+  /*
+   * PUT replaces the whole day; PATCH folds a few symptoms into it.
+   *
+   * The app holds the entire state of the day on screen, so it sends PUT — and
+   * because the record is keyed on the date, that write is an upsert. Replaying
+   * it from the offline outbox any number of times cannot produce a second
+   * check-in, which is why this needs no client id.
+   *
+   * Siri knows one thing at a time and uses PATCH, so "log tinnitus" cannot
+   * wipe what was recorded this morning simply by not mentioning it.
+   */
+  app.put<{ Params: { date: string } }>(
+    '/api/days/:date',
+    { preHandler: guard },
+    async (req, reply) => {
+      if (!localDateSchema.safeParse(req.params.date).success) {
+        return reply.code(400).send({ error: 'invalid_date' });
+      }
+      const parsed = putDayLogSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_body', detail: parsed.error.issues });
+      }
+      const saved = days.put(req.params.date, parsed.data);
+      // An emptied check-in is the absence of one, not an empty one.
+      return saved ?? reply.code(204).send();
+    },
+  );
+
+  app.patch<{ Params: { date: string } }>(
+    '/api/days/:date',
+    { preHandler: guard },
+    async (req, reply) => {
+      if (!localDateSchema.safeParse(req.params.date).success) {
+        return reply.code(400).send({ error: 'invalid_date' });
+      }
+      const parsed = patchDayLogSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_body', detail: parsed.error.issues });
+      }
+      const saved = days.patch(req.params.date, parsed.data);
+      return saved ?? reply.code(204).send();
+    },
+  );
+
+  app.delete<{ Params: { date: string } }>(
+    '/api/days/:date',
+    { preHandler: guard },
+    async (req, reply) => {
+      if (!days.remove(req.params.date)) return reply.code(404).send({ error: 'not_found' });
+      return reply.code(204).send();
+    },
+  );
+
   // ------------------------------------------------------------------ export
 
   app.get('/api/export.json', { preHandler: guard }, async (_req, reply) =>
     reply
       .header('content-type', 'application/json; charset=utf-8')
       .header('content-disposition', `attachment; filename="${exportName('json')}"`)
-      .send(JSON.stringify(toJsonExport(repo.all()), null, 2)),
+      .send(JSON.stringify(toJsonExport(repo.all(), days.all()), null, 2)),
   );
 
   app.get('/api/export.csv', { preHandler: guard }, async (_req, reply) =>
@@ -214,6 +305,13 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
       .header('content-type', 'text/csv; charset=utf-8')
       .header('content-disposition', `attachment; filename="${exportName('csv')}"`)
       .send(toCsv(repo.all())),
+  );
+
+  app.get('/api/export-days.csv', { preHandler: guard }, async (_req, reply) =>
+    reply
+      .header('content-type', 'text/csv; charset=utf-8')
+      .header('content-disposition', `attachment; filename="${exportName('csv', 'days')}"`)
+      .send(toDaysCsv(days.all())),
   );
 
   // ----------------------------------------------------------------- bedside
@@ -289,15 +387,17 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
     // and no passphrase is configured. See config.allowTestReset.
     app.log.warn('ALLOW_TEST_RESET is on: /api/test/reset will erase all data');
     app.post('/api/test/reset', async () => {
-      opts.db.exec('DELETE FROM sketches; DELETE FROM device_events; DELETE FROM flashes;');
+      opts.db.exec(
+        'DELETE FROM sketches; DELETE FROM device_events; DELETE FROM flashes; DELETE FROM day_log_symptoms; DELETE FROM day_logs;',
+      );
       return { ok: true };
     });
   }
 };
 
-const exportName = (ext: string): string => {
+const exportName = (ext: string, kind = 'export'): string => {
   const d = new Date().toISOString().slice(0, 10);
-  return `tempra-export-${d}.${ext}`;
+  return `tempra-${kind}-${d}.${ext}`;
 };
 
 export interface BedsideStatus {

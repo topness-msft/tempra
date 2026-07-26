@@ -1,4 +1,23 @@
-import { SYMPTOMS, intensityWord, type Flash, type Sketch, type Symptom } from '@tempra/shared';
+import {
+  DAY_SYMPTOMS,
+  DAY_SYMPTOM_LABELS,
+  SEVERITY_LABELS,
+  SYMPTOMS,
+  averageSeverity,
+  fromLocalDate,
+  intensityWord,
+  localDateOf,
+  mostReported,
+  severityWord,
+  shiftLocalDate,
+  type DayLog,
+  type DaySymptom,
+  type DaySymptomEntry,
+  type Flash,
+  type Severity,
+  type Sketch,
+  type Symptom,
+} from '@tempra/shared';
 // Fonts are bundled, not fetched from a CDN. Offline is load-bearing here, and
 // the typography is part of the design, not a progressive enhancement.
 import '@fontsource/ibm-plex-sans/latin-400.css';
@@ -20,10 +39,12 @@ import {
   forgetFlash,
   login,
   pendingCount,
+  saveDay,
   startFlash,
   updateFlash,
   Unauthorized,
   type AppState,
+  type PendingDayLog,
   type PendingFlash,
 } from './api.js';
 import { renderSketch, SketchPad } from './draw.js';
@@ -56,6 +77,22 @@ const TILE_LABEL: Record<Symptom, string> = {
 
 const PRIMARY_COUNT = 6;
 
+const DAY_ICON: Record<DaySymptom, string> = {
+  sleep: 'i-sleep',
+  fatigue: 'i-fatigue',
+  brain_fog: 'i-fog',
+  low_mood: 'i-mood',
+  tinnitus: 'i-tinnitus',
+  joint_pain: 'i-joint',
+  anxiety: 'i-anxiety',
+  headache: 'i-headache',
+  dryness: 'i-dryness',
+  skin: 'i-skin',
+};
+
+/** Same rule as the flash tiles: six on screen, the rest behind "more". */
+const DAY_PRIMARY_COUNT = 6;
+
 // ------------------------------------------------------------------ helpers
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -68,7 +105,8 @@ const dayFmt = new Intl.DateTimeFormat(undefined, {
 });
 
 const clock = (iso: string): string => timeFmt.format(new Date(iso));
-const dayKey = (iso: string): string => new Date(iso).toDateString();
+/** Which local day an instant belongs to, as YYYY-MM-DD. */
+const dayKey = (iso: string): string => localDateOf(new Date(iso));
 
 const elapsed = (fromIso: string): string => {
   const secs = Math.max(0, Math.floor((Date.now() - Date.parse(fromIso)) / 1000));
@@ -82,7 +120,7 @@ const elapsed = (fromIso: string): string => {
 
 // -------------------------------------------------------------------- state
 
-type Tab = 'log' | 'history' | 'export';
+type Tab = 'log' | 'day' | 'history' | 'export';
 
 interface Draft {
   intensity: number;
@@ -144,6 +182,33 @@ let endNote = '';
 let authed = true;
 let online = navigator.onLine;
 let viewing: Flash | null = null;
+
+/**
+ * The day check-in currently on screen. Yesterday and the day before are
+ * reachable, because broken sleep is remembered over breakfast rather than
+ * reported at 4am.
+ */
+let dayDate = localDateOf();
+/** How far back the picker will go. Beyond this it is recollection, not record. */
+const DAY_BACK_LIMIT = 30;
+
+interface DayDraft {
+  severities: Map<DaySymptom, Severity>;
+  note: string;
+  showAll: boolean;
+}
+
+const dayDraftFrom = (log: PendingDayLog | null): DayDraft => ({
+  severities: new Map((log?.symptoms ?? []).map((s) => [s.symptom, s.severity as Severity])),
+  note: log?.note ?? '',
+  // Keep the extra symptoms revealed when any of them is already reported,
+  // otherwise they would look unanswered while quietly holding a severity.
+  showAll: (log?.symptoms ?? []).some((s) => DAY_SYMPTOMS.indexOf(s.symptom) >= DAY_PRIMARY_COUNT),
+});
+
+let dayDraft: DayDraft = dayDraftFrom(null);
+/** Which date `dayDraft` belongs to, so a refresh cannot reseed it mid-edit. */
+let dayDraftFor: string | null = null;
 
 /**
  * Deleting is deferred rather than undone.
@@ -212,6 +277,7 @@ const toast = (msg: string, action?: { label: string; onClick: () => void }): vo
 const tabsHtml = (): string => `
   <nav class="tabs">
     <a class="${tab === 'log' ? 'on' : ''}" data-tab="log" href="#log"><svg><use href="#i-log"/></svg>Log</a>
+    <a class="${tab === 'day' ? 'on' : ''}" data-tab="day" href="#day"><svg><use href="#i-day"/></svg>Day</a>
     <a class="${tab === 'history' ? 'on' : ''}" data-tab="history" href="#history"><svg><use href="#i-history"/></svg>History</a>
     <a class="${tab === 'export' ? 'on' : ''}" data-tab="export" href="#export"><svg><use href="#i-export"/></svg>Export</a>
   </nav>
@@ -457,6 +523,87 @@ const endView = (): string => {
   `;
 };
 
+const dayView = (): string => {
+  const d = dayDraft;
+  const today = localDateOf();
+  const isToday = dayDate === today;
+  const isYesterday = dayDate === shiftLocalDate(today, -1);
+  const oldest = shiftLocalDate(today, -DAY_BACK_LIMIT);
+
+  const rows = DAY_SYMPTOMS.map((symptom, i) => {
+    if (!d.showAll && i >= DAY_PRIMARY_COUNT && !d.severities.has(symptom)) return '';
+    const chosen = d.severities.get(symptom);
+    const scale = SEVERITY_LABELS.map(
+      (label, severity) =>
+        `<button type="button" class="s${severity}" data-sev="${symptom}:${severity}"
+                 aria-pressed="${chosen === severity}"
+                 aria-label="${esc(DAY_SYMPTOM_LABELS[symptom])}: ${esc(label)}">${label}</button>`,
+    ).join('');
+    return `
+      <div class="dayrow">
+        <p class="nm"><svg><use href="#${DAY_ICON[symptom]}"/></svg>${esc(
+          DAY_SYMPTOM_LABELS[symptom],
+        )}<i>${chosen === undefined ? 'Not said' : esc(severityWord(chosen))}</i></p>
+        <div class="scale" role="group">${scale}</div>
+      </div>`;
+  }).join('');
+
+  const hidden = DAY_SYMPTOMS.filter(
+    (s, i) => i >= DAY_PRIMARY_COUNT && !d.severities.has(s),
+  ).length;
+
+  const reported = d.severities.size;
+
+  return `
+    <div class="stage">
+      ${bannersHtml()}
+      <div class="daypick">
+        <button type="button" data-act="day-prev" aria-label="Previous day"
+                ${dayDate <= oldest ? 'disabled' : ''}>&lsaquo;</button>
+        <span class="lbl">
+          <span>Checking in for</span>
+          <b>${isToday ? 'Today' : isYesterday ? 'Yesterday' : dayFmt.format(fromLocalDate(dayDate))}${
+            isToday || isYesterday ? ` · ${dayFmt.format(fromLocalDate(dayDate))}` : ''
+          }</b>
+        </span>
+        <button type="button" data-act="day-next" aria-label="Next day"
+                ${isToday ? 'disabled' : ''}>&rsaquo;</button>
+      </div>
+
+      <div class="scroll">
+        <div class="hd">
+          <p class="kicker">${reported ? `${reported} reported` : 'Nothing reported yet'}</p>
+          <h2 class="h1">How has the <em>day been?</em></h2>
+        </div>
+
+        <div class="panel">
+          ${rows}
+          ${
+            hidden && !d.showAll
+              ? `<div class="symptoms" style="margin-top:12px"><button class="more" type="button" data-daymore="1">${hidden} more +</button></div>`
+              : ''
+          }
+        </div>
+
+        <div class="panel">
+          <p class="lab">A note for the day</p>
+          <textarea class="field" id="daynote" rows="2"
+            placeholder="Ringing worse in the quiet. Couldn't find the word for kettle.">${esc(d.note)}</textarea>
+        </div>
+
+        <p class="hintline" style="margin:0 16px">
+          Anything you leave untouched stays unrecorded — that is not the same as
+          <b>Clear</b>, which says you checked.
+        </p>
+      </div>
+
+      <p class="savedline"><b>Saved</b> as you tap · nothing to submit</p>
+
+      ${tabsHtml()}
+    </div>
+  `;
+};
+
 const entryHtml = (f: PendingFlash): string => {
   const calm = (f.intensity ?? 5) <= 4 ? ' calm' : '';
   const when =
@@ -514,9 +661,39 @@ const entryHtml = (f: PendingFlash): string => {
   `;
 };
 
+/**
+ * The day check-in as a band across the head of the day it belongs to.
+ *
+ * A day-level state has no time, so it cannot be interleaved with timed rows
+ * without pretending it has one. Reading it as the conditions, and the flashes
+ * as what happened inside them, keeps both honest and the list scannable.
+ */
+const daybandHtml = (log: PendingDayLog | undefined): string => {
+  if (!log) {
+    // Said out loud, because an empty band would read as "nothing was wrong".
+    return `<div class="dayband"><p class="none">No check-in for this day.</p></div>`;
+  }
+  const chips = log.symptoms
+    .map(
+      (s) =>
+        `<span class="chip s${s.severity}"><i></i>${esc(DAY_SYMPTOM_LABELS[s.symptom])} · ${esc(
+          severityWord(s.severity).toLowerCase(),
+        )}</span>`,
+    )
+    .join('');
+  return `
+    <div class="dayband">
+      <p class="bl">The day${
+        log.pending ? '<span class="pending-dot" role="img" aria-label="Not synced yet"></span>' : ''
+      }</p>
+      ${chips}
+      ${log.note ? `<p class="note daynote">${esc(log.note)}</p>` : ''}
+    </div>`;
+};
+
 const historyView = (): string => {
   const flashes = state.recent;
-  const today = flashes.filter((f) => dayKey(f.startedAt) === new Date().toDateString());
+  const today = flashes.filter((f) => dayKey(f.startedAt) === localDateOf());
   const timed = flashes.filter((f) => f.durationMin !== null);
   const withIntensity = flashes.filter((f) => f.intensity !== null);
   const avgPeak = withIntensity.length
@@ -526,6 +703,8 @@ const historyView = (): string => {
     ? Math.round(timed.reduce((a, f) => a + (f.durationMin ?? 0), 0) / timed.length)
     : null;
 
+  const dayLogs = new Map(state.days.map((d) => [d.date, d]));
+
   const groups = new Map<string, Flash[]>();
   for (const f of flashes) {
     const k = dayKey(f.startedAt);
@@ -533,16 +712,31 @@ const historyView = (): string => {
     if (list) list.push(f);
     else groups.set(k, [f]);
   }
+  // A day with a check-in and no flashes is still a day worth showing: "quiet
+  // day, still ringing" is a finding, not an absence.
+  for (const date of dayLogs.keys()) if (!groups.has(date)) groups.set(date, []);
+  const ordered = [...groups.entries()].sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0));
 
   const overnight = today.filter((f) => new Date(f.startedAt).getHours() < 5).length;
 
-  const body = flashes.length
-    ? [...groups.entries()]
+  // Statistics split rather than merge. There is no honest single number
+  // spanning an eleven-minute episode and a day of tinnitus.
+  const recentDays = state.days.slice(0, 7);
+  const avgSeverity = averageSeverity(recentDays);
+  const commonest = mostReported(recentDays);
+
+  const body = ordered.length
+    ? ordered
         .map(
           ([key, list]) => `
           <div class="panel daygroup">
-            <p class="dayhead">${dayFmt.format(new Date(key))}</p>
-            ${list.map(entryHtml).join('')}
+            <p class="dayhead">${dayFmt.format(fromLocalDate(key))}</p>
+            ${daybandHtml(dayLogs.get(key))}
+            ${
+              list.length
+                ? list.map(entryHtml).join('')
+                : `<p class="empty-note quiet-day">No flashes.</p>`
+            }
           </div>`,
         )
         .join('')
@@ -560,10 +754,17 @@ const historyView = (): string => {
               : 'A quiet day <em>so far</em>'
           }</h2>
         </div>
+        <p class="statshead">Flashes</p>
         <div class="stats">
           <div class="stat"><b>${today.length}</b><span>Today</span></div>
           <div class="stat"><b>${avgPeak}</b><span>Avg peak</span></div>
           <div class="stat"><b>${avgDur ?? '—'}${avgDur ? '<em>m</em>' : ''}</b><span>Avg of ${timed.length} timed</span></div>
+        </div>
+        <p class="statshead">Day check-ins</p>
+        <div class="stats">
+          <div class="stat"><b>${recentDays.length}<em>/7</em></b><span>Days logged</span></div>
+          <div class="stat"><b>${commonest ? esc(DAY_SYMPTOM_LABELS[commonest]) : '—'}</b><span>Most reported</span></div>
+          <div class="stat"><b>${avgSeverity === null ? '—' : avgSeverity.toFixed(1)}</b><span>Avg severity</span></div>
         </div>
         ${body}
         ${
@@ -596,9 +797,10 @@ const exportView = (): string => {
         </div>
         <div class="panel">
           <p class="lab">Download</p>
-          <a class="btn btn-primary" href="/api/export.csv" download>Spreadsheet (CSV)</a>
+          <a class="btn btn-primary" href="/api/export.csv" download>Flashes (CSV)</a>
+          <a class="btn btn-quiet" style="margin-top:8px" href="/api/export-days.csv" download>Day check-ins (CSV)</a>
           <a class="btn btn-quiet" style="margin-top:8px" href="/api/export.json" download>Everything (JSON)</a>
-          <p class="hintline">CSV opens in Numbers or Excel. JSON keeps each sketch as the strokes you drew, so nothing is flattened.</p>
+          <p class="hintline">Two spreadsheets, because the two records don't share columns — a day has no start time and a flash has no severity per symptom, so one table would be half empty on every row. JSON holds both, and keeps each sketch as the strokes you drew.</p>
         </div>
 
         <div class="panel gilt">
@@ -676,9 +878,11 @@ const render = (): void => {
       ? endView()
       : tab === 'history'
         ? historyView()
-        : tab === 'export'
-          ? exportView()
-          : logView();
+        : tab === 'day'
+          ? dayView()
+          : tab === 'export'
+            ? exportView()
+            : logView();
 
   root.innerHTML = `<div class="screen">${screen}${viewing ? viewerHtml(viewing) : ''}</div>`;
 
@@ -782,6 +986,32 @@ const syncDraftToActive = (): void => {
   draft = active ? draftFrom(active) : blankDraft();
 };
 
+/** The check-in on screen, as the app currently believes it to be. */
+const dayLogFor = (date: string): PendingDayLog | null =>
+  state.days.find((d) => d.date === date) ?? null;
+
+const syncDayDraft = (): void => {
+  if (dayDate === dayDraftFor) return;
+  dayDraftFor = dayDate;
+  dayDraft = dayDraftFrom(dayLogFor(dayDate));
+};
+
+/**
+ * Write the whole day. Called on every tap, so there is no submit button to
+ * forget and no window where a choice is on screen but not saved.
+ */
+const persistDay = async (): Promise<void> => {
+  const symptoms: DaySymptomEntry[] = DAY_SYMPTOMS.filter((s) => dayDraft.severities.has(s)).map(
+    (symptom) => ({ symptom, severity: dayDraft.severities.get(symptom) as Severity }),
+  );
+  await saveDay(dayDate, { symptoms, note: dayDraft.note.trim() || null });
+  // Refetch like every other mutation does. Once the write has been accepted it
+  // leaves the outbox, so the projection stops carrying it — without this the
+  // check-in would vanish from history until the next poll. Offline the fetch
+  // simply fails and the queued op keeps holding the day up.
+  await refresh();
+};
+
 const refresh = async (): Promise<void> => {
   try {
     serverState = await fetchState();
@@ -793,6 +1023,7 @@ const refresh = async (): Promise<void> => {
   }
   recompute();
   syncDraftToActive();
+  syncDayDraft();
   render();
 };
 
@@ -899,6 +1130,11 @@ const beginDelete = (id: string): void => {
  * nothing may await here.
  */
 window.addEventListener('pagehide', () => {
+  const note = root.querySelector<HTMLTextAreaElement>('#daynote');
+  if (note && note.value !== (dayLogFor(dayDate)?.note ?? '')) {
+    dayDraft.note = note.value;
+    void persistDay();
+  }
   for (const [id, timer] of deleting) {
     window.clearTimeout(timer);
     deleting.delete(id);
@@ -1031,7 +1267,7 @@ root.addEventListener('click', (e) => {
   }
 
   const btn = target.closest<HTMLElement>(
-    '[data-act],[data-tab],[data-sym],[data-more],[data-mode],[data-view],.padslot',
+    '[data-act],[data-tab],[data-sym],[data-more],[data-daymore],[data-sev],[data-mode],[data-view],.padslot',
   );
   if (!btn) return;
 
@@ -1039,6 +1275,12 @@ root.addEventListener('click', (e) => {
     e.preventDefault();
     tab = btn.dataset.tab as Tab;
     ending = false;
+    // Arriving on the Day tab should always land on the day it is now, not on
+    // whatever date was last being edited hours ago.
+    if (tab === 'day') {
+      dayDate = localDateOf();
+      syncDayDraft();
+    }
     render();
     return;
   }
@@ -1057,6 +1299,24 @@ root.addEventListener('click', (e) => {
   if (btn.dataset.more) {
     draft.showAll = true;
     render();
+    return;
+  }
+
+  if (btn.dataset.daymore) {
+    dayDraft.showAll = true;
+    render();
+    return;
+  }
+
+  if (btn.dataset.sev) {
+    const [symptom, level] = btn.dataset.sev.split(':');
+    const s = symptom as DaySymptom;
+    const severity = Number(level) as Severity;
+    // Tapping the chosen severity again takes it back to unsaid, which is the
+    // only way to say "ignore this one after all" without claiming it was clear.
+    if (dayDraft.severities.get(s) === severity) dayDraft.severities.delete(s);
+    else dayDraft.severities.set(s, severity);
+    void persistDay();
     return;
   }
 
@@ -1139,6 +1399,19 @@ root.addEventListener('click', (e) => {
       viewing = null;
       render();
       break;
+    case 'day-prev':
+      dayDate = shiftLocalDate(dayDate, -1);
+      syncDayDraft();
+      render();
+      break;
+    case 'day-next':
+      // Never past today: a check-in for a day that has not happened would be a
+      // prediction, and this app only keeps observations.
+      if (dayDate >= localDateOf()) break;
+      dayDate = shiftLocalDate(dayDate, 1);
+      syncDayDraft();
+      render();
+      break;
   }
 });
 
@@ -1151,6 +1424,10 @@ root.addEventListener('input', (e) => {
   }
   if (el.id === 'endnote') {
     endNote = el.value;
+    return;
+  }
+  if (el.id === 'daynote') {
+    dayDraft.note = el.value;
     return;
   }
 
@@ -1186,6 +1463,16 @@ root.addEventListener('input', (e) => {
     const word = root.querySelector('.gauge .word');
     if (word) word.textContent = intensityWord(draft.intensity);
   }
+});
+
+/*
+ * The day note saves when she stops typing rather than on every keystroke — a
+ * write per character would fill the outbox for no gain — and again on the way
+ * out, so a note typed offline and then backgrounded is never the one thing
+ * that did not survive.
+ */
+root.addEventListener('change', (e) => {
+  if ((e.target as HTMLElement).id === 'daynote') void persistDay();
 });
 
 root.addEventListener('keydown', (e) => {

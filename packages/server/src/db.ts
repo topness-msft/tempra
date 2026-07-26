@@ -113,6 +113,43 @@ const MIGRATIONS: readonly string[] = [
   CREATE INDEX flashes_started_at ON flashes (started_at DESC);
   CREATE UNIQUE INDEX flashes_client_id ON flashes (client_id) WHERE client_id IS NOT NULL;
   `,
+
+  /*
+   * Day check-ins: the menopause symptoms that are not episodes.
+   *
+   * Purely additive — no existing table is touched, so a production database
+   * full of real flashes upgrades by creating two empty tables and nothing else.
+   *
+   * The key is a *local* calendar date rather than an instant. A day check-in
+   * belongs to the day she lived, not to a moment inside it, and storing it as a
+   * timestamp would slide it across midnight for anyone east or west of here.
+   * Keying on the date is also what makes writing one an upsert, which is what
+   * lets the offline outbox replay it any number of times without ever creating
+   * a second check-in for the same day.
+   *
+   * Severity 0 is "Clear" — something she deliberately reported. A symptom she
+   * never mentioned has no row at all, because "I didn't say" and "I said it was
+   * fine" are different facts and the schema must be able to tell them apart.
+   *
+   * `IF NOT EXISTS` because the migration test replays this step over a database
+   * that has already had it applied. Nothing here is destructive either way.
+   */
+  `
+  CREATE TABLE IF NOT EXISTS day_logs (
+    date       TEXT PRIMARY KEY
+               CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    note       TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS day_log_symptoms (
+    date     TEXT NOT NULL REFERENCES day_logs(date) ON DELETE CASCADE,
+    symptom  TEXT NOT NULL,
+    severity INTEGER NOT NULL CHECK (severity BETWEEN 0 AND 3),
+    PRIMARY KEY (date, symptom)
+  );
+  `,
 ];
 
 export const migrate = (db: Db): number => {

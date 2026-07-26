@@ -232,7 +232,8 @@ test('history shows the day summary and the entry', async ({ page }) => {
 
   await page.locator('[data-tab="history"]').click();
 
-  await expect(page.locator('.stats')).toContainText('1');
+  // Two strips now: flashes first, day check-ins under it.
+  await expect(page.locator('.stats').first()).toContainText('1');
   await expect(page.locator('.entry').first()).toBeVisible();
   await expect(page.locator('.scroll')).toContainText(/chills/i);
 });
@@ -241,7 +242,8 @@ test('export offers both formats and the CSV downloads with real rows', async ({
   await page.locator('[data-act="begin"]').click();
   await page.locator('[data-tab="export"]').click();
 
-  await expect(page.getByText('Spreadsheet (CSV)')).toBeVisible();
+  await expect(page.getByText('Flashes (CSV)')).toBeVisible();
+  await expect(page.getByText('Day check-ins (CSV)')).toBeVisible();
   await expect(page.getByText('Everything (JSON)')).toBeVisible();
 
   const csv = await page.request.get('/api/export.csv');

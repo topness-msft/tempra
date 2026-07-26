@@ -1,0 +1,165 @@
+import { test, expect } from '@playwright/test';
+
+/**
+ * Day check-ins: the symptoms that are not episodes.
+ *
+ * The two things these tests exist to protect are the honesty rule — an
+ * untouched symptom is recorded as nothing, which is not the same as Clear —
+ * and the fact that a check-in is keyed on the date, so it survives being
+ * written offline and replayed.
+ */
+
+const today = (): string => {
+  const d = new Date();
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+test.beforeEach(async ({ page }) => {
+  await page.request.post('/api/test/reset');
+  await page.goto('/');
+  await expect(page.locator('.stage')).toBeVisible();
+});
+
+test('the log screen is unchanged: Begin flash is still one tap away', async ({ page }) => {
+  // The whole reason day check-ins live behind their own tab. Nothing may come
+  // between a half-awake thumb and this button.
+  await expect(page.locator('[data-act="begin"]')).toBeVisible();
+  await expect(page.locator('.cta .btn-primary')).toHaveCount(1);
+  await expect(page.locator('.tabs a')).toHaveCount(4);
+});
+
+test('recording a day check-in saves each tap, with no submit button', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+  await expect(page.locator('.daypick')).toBeVisible();
+
+  await page.locator('[data-sev="tinnitus:2"]').click();
+  await page.locator('[data-sev="sleep:3"]').click();
+  // Clear is a deliberate observation, not an empty answer.
+  await page.locator('[data-sev="joint_pain:0"]').click();
+
+  await expect(page.locator('.kicker')).toContainText('3 reported');
+  await expect(page.locator('[data-sev="tinnitus:2"]')).toHaveAttribute('aria-pressed', 'true');
+
+  await expect
+    .poll(async () => (await (await page.request.get('/api/days')).json()).days.length)
+    .toBe(1);
+
+  const day = (await (await page.request.get('/api/days')).json()).days[0];
+  expect(day.date).toBe(today());
+  // Vocabulary order, matching the order she was asked on screen.
+  expect(day.symptoms).toEqual([
+    { symptom: 'sleep', severity: 3 },
+    { symptom: 'tinnitus', severity: 2 },
+    { symptom: 'joint_pain', severity: 0 },
+  ]);
+});
+
+test('a symptom she never touched is stored as nothing at all', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+  await page.locator('[data-sev="tinnitus:1"]').click();
+
+  await expect
+    .poll(async () => (await (await page.request.get('/api/days')).json()).days.length)
+    .toBe(1);
+
+  const day = (await (await page.request.get('/api/days')).json()).days[0];
+  // Only the one she answered. Fatigue is absent, not zero.
+  expect(day.symptoms).toEqual([{ symptom: 'tinnitus', severity: 1 }]);
+  expect(day.symptoms.map((s: { symptom: string }) => s.symptom)).not.toContain('fatigue');
+});
+
+test('tapping the chosen severity again takes it back to unsaid', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+  await page.locator('[data-sev="tinnitus:2"]').click();
+  // The tinnitus row, not the first on screen — sleep is asked first.
+  const row = page.locator('.dayrow').filter({ hasText: 'Tinnitus' });
+  await expect(row.locator('.nm i')).not.toContainText('Not said');
+
+  await page.locator('[data-sev="tinnitus:2"]').click();
+  await expect(page.locator('[data-sev="tinnitus:2"]')).toHaveAttribute('aria-pressed', 'false');
+
+  // Emptied out entirely, the check-in stops existing rather than becoming a
+  // blank one that reads as "nothing was wrong".
+  await expect
+    .poll(async () => (await (await page.request.get('/api/days')).json()).days.length)
+    .toBe(0);
+});
+
+test('history shows the day as a band above that day’s flashes', async ({ page }) => {
+  await page.locator('[data-act="begin"]').click();
+  await expect(page.locator('.ribbon')).toBeVisible();
+
+  await page.locator('[data-tab="day"]').click();
+  await page.locator('[data-sev="tinnitus:2"]').click();
+
+  await page.locator('[data-tab="history"]').click();
+  await expect(page.locator('.dayband .chip')).toContainText('Tinnitus · moderate');
+  // Both records, one group, and the band is above the timed rows.
+  await expect(page.locator('.daygroup').first().locator('.entry')).toHaveCount(1);
+  await expect(page.locator('.statshead')).toHaveCount(2);
+});
+
+test('a day with a check-in and no flashes is still a day worth showing', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+  await page.locator('[data-sev="sleep:3"]').click();
+
+  await page.locator('[data-tab="history"]').click();
+  await expect(page.locator('.daygroup')).toHaveCount(1);
+  await expect(page.locator('.quiet-day')).toContainText('No flashes');
+});
+
+test('a check-in written offline is queued and delivered on reconnect', async ({
+  page,
+  context,
+}) => {
+  await context.setOffline(true);
+
+  await page.locator('[data-tab="day"]').click();
+  await page.locator('[data-sev="tinnitus:2"]').click();
+  await page.locator('[data-sev="sleep:3"]').click();
+
+  // She must see it took, and see that it has not reached the server yet.
+  await expect(page.locator('.kicker')).toContainText('2 reported');
+  await expect(page.locator('.sync-bar')).toBeVisible();
+  // A day is one upserted record, so fiddling with it offline leaves exactly
+  // one queued write, not one per tap.
+  await expect(page.locator('.sync-bar')).toContainText('1');
+
+  await page.locator('[data-tab="history"]').click();
+  await expect(page.locator('.dayband .pending-dot')).toBeVisible();
+
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.locator('.sync-bar')).toHaveCount(0, { timeout: 10_000 });
+
+  const days = (await (await page.request.get('/api/days')).json()).days;
+  expect(days).toHaveLength(1);
+  expect(days[0].date).toBe(today());
+  expect(days[0].symptoms).toEqual([
+    { symptom: 'sleep', severity: 3 },
+    { symptom: 'tinnitus', severity: 2 },
+  ]);
+
+  await expect(page.locator('.dayband .pending-dot')).toHaveCount(0);
+});
+
+test('yesterday can be filled in this morning, and tomorrow cannot', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+  await expect(page.locator('[data-act="day-next"]')).toBeDisabled();
+
+  await page.locator('[data-act="day-prev"]').click();
+  await expect(page.locator('.daypick .lbl b')).toContainText('Yesterday');
+  await page.locator('[data-sev="sleep:3"]').click();
+
+  await expect
+    .poll(async () => (await (await page.request.get('/api/days')).json()).days.length)
+    .toBe(1);
+
+  const days = (await (await page.request.get('/api/days')).json()).days;
+  expect(days[0].date).not.toBe(today());
+
+  // Today is still untouched: the two days are separate records.
+  await page.locator('[data-act="day-next"]').click();
+  await expect(page.locator('.kicker')).toContainText('Nothing reported yet');
+});

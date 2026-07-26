@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb, migrate, type Db } from '../src/db.js';
-import { FlashRepo } from '../src/repo.js';
+import { FlashRepo, DayLogRepo } from '../src/repo.js';
 
 let db: Db;
 let repo: FlashRepo;
@@ -85,6 +85,26 @@ describe('migrations', () => {
         )
         .run(),
     ).toThrow();
+  });
+
+  /*
+   * Day check-ins arrived as migration 3. The production database holds real
+   * health data, so the only acceptable upgrade is one that adds two empty
+   * tables and leaves every flash exactly where it was.
+   */
+  it('adds the day check-in tables to an existing database without touching the flashes', () => {
+    const f = repo.start({ symptoms: ['sweating'], note: 'still here afterwards' });
+
+    // Rewind to what a machine running the previous release actually has on disk.
+    db.exec('DROP TABLE day_log_symptoms; DROP TABLE day_logs;');
+    db.pragma('user_version = 2');
+    migrate(db);
+
+    expect(db.pragma('user_version', { simple: true })).toBe(3);
+    const after = repo.get(f.id);
+    expect(after?.symptoms).toEqual(['sweating']);
+    expect(after?.note).toBe('still here afterwards');
+    expect(new DayLogRepo(db).count()).toBe(0);
   });
 });
 

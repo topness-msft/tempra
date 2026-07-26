@@ -24,6 +24,9 @@ async function logAndOpenHistory(page: Page) {
 /** Drag a row horizontally by `dx` pixels, in steps, like a real finger. */
 async function drag(page: Page, dx: number, dy = 0) {
   const row = page.locator('.swipe').first();
+  // History now carries two stats strips above the list, so the first row can
+  // sit below the fold on a phone viewport. boundingBox does not scroll.
+  await row.scrollIntoViewIfNeeded();
   const box = await row.boundingBox();
   if (!box) throw new Error('row has no box');
   const x = box.x + box.width - 40;

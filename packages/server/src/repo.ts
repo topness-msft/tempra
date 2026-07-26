@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import {
+  DAY_SYMPTOMS,
   durationMinutes,
+  isEmptyDayLog,
   type CreateFlashInput,
+  type DayLog,
+  type DaySymptom,
+  type DaySymptomEntry,
+  type PatchDaySymptomEntry,
   type Flash,
   type FlashSource,
   type Sketch,
@@ -252,6 +258,152 @@ export class FlashRepo {
 
   count(): number {
     const row = this.db.prepare('SELECT COUNT(*) AS n FROM flashes').get() as { n: number };
+    return row.n;
+  }
+}
+
+interface DayLogRow {
+  date: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DayListOptions {
+  limit?: number;
+  from?: string;
+  to?: string;
+}
+
+/**
+ * Day check-ins. Everything here is keyed on a local calendar date, so writing
+ * one is an upsert rather than a create — replaying the same queued check-in
+ * twice is a no-op instead of a duplicate.
+ */
+export class DayLogRepo {
+  constructor(private readonly db: Db) {}
+
+  private hydrate(row: DayLogRow): DayLog {
+    const symptoms = this.db
+      .prepare(
+        'SELECT symptom, severity FROM day_log_symptoms WHERE date = ? ORDER BY symptom',
+      )
+      .all(row.date) as DaySymptomEntry[];
+
+    return {
+      date: row.date,
+      // Vocabulary order, not alphabetical: the export and the UI should read in
+      // the order she was asked, so the columns line up with the screen.
+      symptoms: [...symptoms].sort(
+        (a, b) => DAY_SYMPTOMS.indexOf(a.symptom) - DAY_SYMPTOMS.indexOf(b.symptom),
+      ),
+      note: row.note,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  get(date: string): DayLog | null {
+    const row = this.db.prepare('SELECT * FROM day_logs WHERE date = ?').get(date) as
+      | DayLogRow
+      | undefined;
+    return row ? this.hydrate(row) : null;
+  }
+
+  /**
+   * Replace the whole state of a day. A check-in with no symptoms and no note is
+   * not an empty check-in, it is the absence of one, so it removes the row —
+   * history can then say "no check-in for this day" instead of showing a blank
+   * band that reads as "nothing was wrong".
+   */
+  put(date: string, input: { symptoms: readonly DaySymptomEntry[]; note?: string | null }): DayLog | null {
+    const note = input.note?.trim() ? input.note.trim() : null;
+
+    const run = this.db.transaction(() => {
+      if (isEmptyDayLog({ symptoms: input.symptoms, note })) {
+        this.db.prepare('DELETE FROM day_logs WHERE date = ?').run(date);
+        return;
+      }
+
+      const now = new Date().toISOString();
+      this.db
+        .prepare(
+          `INSERT INTO day_logs (date, note, created_at, updated_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(date) DO UPDATE SET note = excluded.note, updated_at = excluded.updated_at`,
+        )
+        .run(date, note, now, now);
+
+      this.db.prepare('DELETE FROM day_log_symptoms WHERE date = ?').run(date);
+      const insert = this.db.prepare(
+        'INSERT OR REPLACE INTO day_log_symptoms (date, symptom, severity) VALUES (?, ?, ?)',
+      );
+      for (const s of input.symptoms) insert.run(date, s.symptom, s.severity);
+    });
+
+    run();
+    return this.get(date);
+  }
+
+  /**
+   * Fold a few symptoms into a day, leaving the rest alone. The Siri path knows
+   * one thing — "log tinnitus" — and must not wipe what the app recorded this
+   * morning just because it did not mention it.
+   */
+  patch(
+    date: string,
+    input: { symptoms?: readonly PatchDaySymptomEntry[]; note?: string | null },
+  ): DayLog | null {
+    const existing = this.get(date);
+    const merged = new Map<DaySymptom, number>(
+      (existing?.symptoms ?? []).map((s) => [s.symptom, s.severity]),
+    );
+    // A null severity is the only way to unsay something over PATCH: the
+    // absence of a key means "don't touch it", so it cannot also mean "clear
+    // it". Without this the Siri path could add but never correct.
+    for (const s of input.symptoms ?? []) {
+      if (s.severity === null) merged.delete(s.symptom);
+      else merged.set(s.symptom, s.severity);
+    }
+
+    return this.put(date, {
+      symptoms: [...merged].map(([symptom, severity]) => ({ symptom, severity })),
+      note: input.note === undefined ? existing?.note ?? null : input.note,
+    });
+  }
+
+  list(opts: DayListOptions = {}): DayLog[] {
+    const limit = Math.min(Math.max(opts.limit ?? 60, 1), 1000);
+    const clauses: string[] = [];
+    const args: (string | number)[] = [];
+    if (opts.from) {
+      clauses.push('date >= ?');
+      args.push(opts.from);
+    }
+    if (opts.to) {
+      clauses.push('date <= ?');
+      args.push(opts.to);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const rows = this.db
+      .prepare(`SELECT * FROM day_logs ${where} ORDER BY date DESC LIMIT ?`)
+      .all(...args, limit) as DayLogRow[];
+    return rows.map((r) => this.hydrate(r));
+  }
+
+  /** Every check-in, oldest first. Used by export, which must not paginate. */
+  all(): DayLog[] {
+    const rows = this.db
+      .prepare('SELECT * FROM day_logs ORDER BY date ASC')
+      .all() as DayLogRow[];
+    return rows.map((r) => this.hydrate(r));
+  }
+
+  remove(date: string): boolean {
+    return this.db.prepare('DELETE FROM day_logs WHERE date = ?').run(date).changes > 0;
+  }
+
+  count(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS n FROM day_logs').get() as { n: number };
     return row.n;
   }
 }

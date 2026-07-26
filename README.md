@@ -13,6 +13,9 @@ docs write your instance's address as `https://your-app.fly.dev` throughout.
 
 - **Log a flash in one tap** — from the app, an iOS Shortcut, Siri, or a physical
   button on the nightstand that also starts the bed cooling.
+- **Check in on the day** — the menopause symptoms that aren't episodes: broken
+  sleep, fatigue, brain fog, low mood, tinnitus, joint pain and more, each with a
+  severity, on its own tab.
 - **Works offline.** The web app is a PWA that queues writes locally and syncs when
   signal returns. Offline isn't a nicety here; it's the primary case.
 - **Add detail whenever.** Intensity, nine symptoms, a free note, and a finger
@@ -20,7 +23,52 @@ docs write your instance's address as `https://your-app.fly.dev` throughout.
 - **Delete a mistake** by swiping an entry in history — with a few seconds to undo,
   before anything actually leaves the device.
 - **Export everything** as CSV or JSON, so the data can go to a doctor, a
-  spreadsheet, or somewhere else entirely. It is her data.
+  spreadsheet, or somewhere else entirely. It is her data. Flashes and day
+  check-ins get a CSV each — they share almost no columns, and forcing them into
+  one sheet would leave most of every row blank — while the JSON holds both.
+
+### A day is a state, not an event
+
+A hot flash is a discrete episode: it starts, it may end, it has an intensity.
+Tinnitus is not. Neither is brain fog, or a bad night's sleep. Those are the
+*conditions of a day*, noticed in passing and reported once, not events with a
+clock on them.
+
+So they are a second kind of record — a **day check-in**, one per local calendar
+date, holding a severity (Clear, Mild, Moderate, Severe) for each symptom
+reported, plus a note. Four steps rather than a 1–10 slider, because a number
+out of ten implies a precision nobody has about their own ears.
+
+Keying on the date rather than on an event id is what makes it work offline: a
+write is an upsert, so replaying a queued check-in restates the day instead of
+logging it twice. Every tap saves — there is no submit button to forget — and a
+repeated write to the same date replaces the queued one, so a morning of
+fiddling with no signal leaves exactly one entry in the outbox.
+
+**Unset is not Clear.** A symptom she never touched stores no row at all;
+severity 0 ("Clear") means she looked and there was nothing there. This is the
+same honesty rule as a flash with no end time: the app records what it was told
+and nothing more. Emptying a check-in out entirely deletes it rather than
+leaving a blank day that would read as "nothing was wrong".
+
+What this model gives up: a check-in cannot say tinnitus was bad in the morning
+and gone by lunch, and it cannot hold a symptom that spans several days as one
+thing. That is a deliberate trade. Sub-day resolution would mean asking for a
+time, which is the ceremony this record exists to avoid, and the pattern worth
+seeing — a run of foggy days after a run of broken nights — is legible at day
+resolution.
+
+**The 3am path is untouched.** Day check-ins live behind their own tab, not a
+button on the log screen. A tab is a destination, not a decision; nothing was
+added between a half-awake thumb and **Begin flash**.
+
+In history a day check-in renders as a band across the head of its day group,
+above that day's flashes, never interleaved with them — it has no time, and
+placing it in the timeline would pretend it did. A day with a check-in and no
+flashes still appears: "quiet day, still ringing" is a finding, not an absence.
+The summary statistics are likewise split into two labelled strips rather than
+merged, because there is no honest single number spanning an eleven-minute
+episode and a day of tinnitus.
 
 ### A flash doesn't need an end time
 
@@ -116,10 +164,12 @@ ops               litestream config and the container entrypoint
 
 Two files carry more weight than the rest:
 
-- **`packages/server/src/db.ts`** holds the schema, both migrations, and the
+- **`packages/server/src/db.ts`** holds the schema, all three migrations, and the
   foreign-key handling around them. Migration 2 rebuilds the `flashes` table, and
   dropping that table with foreign keys enabled would cascade-delete the very rows
-  the rebuild exists to preserve. The pragma juggling is load-bearing.
+  the rebuild exists to preserve. The pragma juggling is load-bearing. Migration 3
+  adds `day_logs` and `day_log_symptoms` and is purely additive, so a production
+  database carrying real health data upgrades without touching a flash.
 - **`packages/web/src/api.ts`** — `projectState()` replays the offline outbox over
   server state. It's the single point where offline correctness is decided.
 

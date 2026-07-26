@@ -157,6 +157,53 @@ finds a flash that's been running since 2am.
 
 ---
 
+## 6. Checking in on the day from a shortcut
+
+Day check-ins are the symptoms that aren't episodes — tinnitus, brain fog, a bad
+night. They're keyed on the date rather than on an event, so a shortcut writes to
+a URL that names the day:
+
+```
+https://tempra.fly.dev/api/days/2026-07-26
+```
+
+Use **PATCH**, not PUT. PATCH folds the symptoms you name into whatever is already
+recorded for that day; PUT replaces the whole check-in, so a Siri phrase that
+mentions one symptom would wipe everything logged earlier that morning.
+
+Build **Log tinnitus** as a duplicate of the first shortcut, then:
+
+1. Add **Current Date**, then **Format Date** → **Custom** → Format String
+   `yyyy-MM-dd`. This has to be the *phone's* date — the day is a local calendar
+   day, not a UTC one, and at 1am those differ.
+2. In **Get Contents of URL**, set the URL to
+   `https://tempra.fly.dev/api/days/` followed by the **Formatted Date** variable.
+3. **Method**: `PATCH`, same `Authorization` header, **Request Body**: `JSON`.
+4. In the request body add one field:
+
+   | Type | Key | Value |
+   | --- | --- | --- |
+   | Dictionary | `symptoms` | one entry — Key `tinnitus`, Type **Number**, Value `2` |
+
+Severity is `0`–`3`: **0 Clear, 1 Mild, 2 Moderate, 3 Severe**. Send `null`
+instead of a number to take a symptom back to unrecorded.
+
+The symptom keys are `sleep`, `fatigue`, `brain_fog`, `low_mood`, `tinnitus`,
+`joint_pain`, `anxiety`, `headache`, `dryness`, `skin`. Anything else is a 400.
+
+To ask rather than assume, add an **Ask for Input** (Number, default `2`) above
+and use its **Provided Input** as the value — worth it here in a way it isn't for
+a flash, because a check-in is a daytime action with attention to spare.
+
+A note for the day works the same way: add a Text field with key `note`. It
+replaces the day's existing note rather than appending, so keep it for shortcuts
+that are the only thing writing one.
+
+Nothing here is queued if you're offline — the same caveat as everything else in
+this document. Use the app's **Day** tab, which writes to the outbox.
+
+---
+
 ## Troubleshooting
 
 | What you see | What it means |
