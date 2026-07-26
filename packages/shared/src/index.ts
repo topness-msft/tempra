@@ -146,7 +146,7 @@ export const DAY_SYMPTOMS = [
 export type DaySymptom = (typeof DAY_SYMPTOMS)[number];
 
 export const DAY_SYMPTOM_LABELS: Record<DaySymptom, string> = {
-  // "Broken sleep", not "Sleep": with a clear-to-severe scale, "Sleep: severe"
+  // "Broken sleep", not "Sleep": with a none-to-severe scale, "Sleep: severe"
   // has to mean severely disrupted, and the label is what makes that obvious.
   sleep: 'Broken sleep',
   fatigue: 'Fatigue',
@@ -163,10 +163,10 @@ export const DAY_SYMPTOM_LABELS: Record<DaySymptom, string> = {
 /**
  * Four steps, not ten. She is estimating either way, and a ten-point scale
  * invites a precision that is not there — as well as making each target too
- * small to hit. `0` is "Clear", which is a real observation she tapped; a
+ * small to hit. `0` is "None", which is a real observation she tapped; a
  * symptom she never touched is simply absent, and absent is not zero.
  */
-export const SEVERITY_LABELS = ['Clear', 'Mild', 'Moderate', 'Severe'] as const;
+export const SEVERITY_LABELS = ['None', 'Mild', 'Moderate', 'Severe'] as const;
 export type Severity = 0 | 1 | 2 | 3;
 
 export const severityWord = (severity: number): string =>
@@ -281,6 +281,8 @@ export const isEmptyDayLog = (input: { symptoms: readonly unknown[]; note?: stri
 /**
  * Mean of the severities she actually gave. Symptoms she never mentioned are
  * absent from the average rather than counted as zero — silence is not a score.
+ * A tapped "none" *is* counted, because it is an answer: a week of quiet days
+ * should pull this number down, and it is the one place the zeroes are visible.
  */
 export const averageSeverity = (logs: readonly DayLog[]): number | null => {
   const all = logs.flatMap((d) => d.symptoms.map((s) => s.severity));
@@ -288,11 +290,18 @@ export const averageSeverity = (logs: readonly DayLog[]): number | null => {
   return all.reduce((a, b) => a + b, 0) / all.length;
 };
 
-/** The day symptom reported on the most days, ties broken by vocabulary order. */
+/**
+ * The day symptom troubling her on the most days, ties broken by vocabulary
+ * order. A severity of none does not count: answering "no joint pain" every
+ * morning is diligence, and it should not make joint pain look like the thing
+ * she suffers from most. Same rule the history bands follow.
+ */
 export const mostReported = (logs: readonly DayLog[]): DaySymptom | null => {
   const counts = new Map<DaySymptom, number>();
   for (const log of logs) {
-    for (const s of log.symptoms) counts.set(s.symptom, (counts.get(s.symptom) ?? 0) + 1);
+    for (const s of log.symptoms) {
+      if (s.severity > 0) counts.set(s.symptom, (counts.get(s.symptom) ?? 0) + 1);
+    }
   }
   let best: DaySymptom | null = null;
   let bestCount = 0;

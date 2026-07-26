@@ -127,7 +127,7 @@ const MIGRATIONS: readonly string[] = [
    * lets the offline outbox replay it any number of times without ever creating
    * a second check-in for the same day.
    *
-   * Severity 0 is "Clear" — something she deliberately reported. A symptom she
+   * Severity 0 is "None" — something she deliberately reported. A symptom she
    * never mentioned has no row at all, because "I didn't say" and "I said it was
    * fine" are different facts and the schema must be able to tell them apart.
    *

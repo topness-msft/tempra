@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
  * Day check-ins: the symptoms that are not episodes.
  *
  * The two things these tests exist to protect are the honesty rule — an
- * untouched symptom is recorded as nothing, which is not the same as Clear —
+ * untouched symptom is recorded as nothing, which is not the same as None —
  * and the fact that a check-in is keyed on the date, so it survives being
  * written offline and replayed.
  */
@@ -35,7 +35,7 @@ test('recording a day check-in saves each tap, with no submit button', async ({ 
 
   await page.locator('[data-sev="tinnitus:2"]').click();
   await page.locator('[data-sev="sleep:3"]').click();
-  // Clear is a deliberate observation, not an empty answer.
+  // None is a deliberate observation, not an empty answer.
   await page.locator('[data-sev="joint_pain:0"]').click();
 
   await expect(page.locator('.kicker')).toContainText('3 reported');
@@ -107,6 +107,32 @@ test('a day with a check-in and no flashes is still a day worth showing', async 
   await page.locator('[data-tab="history"]').click();
   await expect(page.locator('.daygroup')).toHaveCount(1);
   await expect(page.locator('.quiet-day')).toContainText('No flashes');
+});
+
+test('history shows only what troubled her, not the symptoms she cleared', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+  await page.locator('[data-sev="tinnitus:2"]').click();
+  await page.locator('[data-sev="joint_pain:0"]').click();
+
+  await page.locator('[data-tab="history"]').click();
+  // A row of "none" chips would bury the one that matters.
+  await expect(page.locator('.dayband .chip')).toHaveCount(1);
+  await expect(page.locator('.dayband')).toContainText('Tinnitus · moderate');
+  await expect(page.locator('.dayband')).not.toContainText('Joint pain');
+
+  // Still in the record, though — history is a summary, not the archive.
+  const day = (await (await page.request.get('/api/days')).json()).days[0];
+  expect(day.symptoms).toContainEqual({ symptom: 'joint_pain', severity: 0 });
+});
+
+test('a day she checked and found nothing wrong says so', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+  await page.locator('[data-sev="tinnitus:0"]').click();
+
+  await page.locator('[data-tab="history"]').click();
+  // Distinct from "No check-in for this day", which would be a different fact.
+  await expect(page.locator('.dayband')).toContainText('nothing to report');
+  await expect(page.locator('.dayband .chip')).toHaveCount(0);
 });
 
 test('a check-in written offline is queued and delivered on reconnect', async ({

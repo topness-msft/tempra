@@ -114,7 +114,7 @@ export const toDaysCsv = (days: readonly DayLog[]): string => {
         // the numbers for anything that wants to compute with them.
         //
         // An empty cell means she never reported that symptom, which is not the
-        // same as reporting it clear — that is the word "Clear".
+        // same as reporting there was none — that is the word "None".
         ...DAY_SYMPTOMS.map((s) => {
           const severity = byName.get(s);
           return severity === undefined ? '' : cell(severityWord(severity));

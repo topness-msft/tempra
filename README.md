@@ -35,7 +35,7 @@ Tinnitus is not. Neither is brain fog, or a bad night's sleep. Those are the
 clock on them.
 
 So they are a second kind of record — a **day check-in**, one per local calendar
-date, holding a severity (Clear, Mild, Moderate, Severe) for each symptom
+date, holding a severity (None, Mild, Moderate, Severe) for each symptom
 reported, plus a note. Four steps rather than a 1–10 slider, because a number
 out of ten implies a precision nobody has about their own ears.
 
@@ -45,8 +45,8 @@ logging it twice. Every tap saves — there is no submit button to forget — an
 repeated write to the same date replaces the queued one, so a morning of
 fiddling with no signal leaves exactly one entry in the outbox.
 
-**Unset is not Clear.** A symptom she never touched stores no row at all;
-severity 0 ("Clear") means she looked and there was nothing there. This is the
+**Unset is not None.** A symptom she never touched stores no row at all;
+severity 0 ("None") means she looked and there was nothing there. This is the
 same honesty rule as a flash with no end time: the app records what it was told
 and nothing more. Emptying a check-in out entirely deletes it rather than
 leaving a blank day that would read as "nothing was wrong".
@@ -69,6 +69,16 @@ flashes still appears: "quiet day, still ringing" is a finding, not an absence.
 The summary statistics are likewise split into two labelled strips rather than
 merged, because there is no honest single number spanning an eleven-minute
 episode and a day of tinnitus.
+
+**History shows only what troubled her.** A symptom answered "None" gets no chip
+— a band of nothings buries the one line that matters, and history is for
+scanning. Nothing is discarded: the zeroes stay in the record, in the export and
+in the average severity, which is where "was the tinnitus ever quiet?" gets
+answered. A day where *everything* was answered None reads "Checked in ·
+nothing to report", which is a different fact from never having been asked, and
+is shown as one. For the same reason, a symptom she only ever reports as None
+is not eligible to be the "most reported" statistic: answering "no joint pain"
+every morning is diligence, not suffering.
 
 ### A flash doesn't need an end time
 

@@ -33,9 +33,9 @@ describe('day symptom vocabulary', () => {
     expect(new Set(DAY_SYMPTOMS).size).toBe(DAY_SYMPTOMS.length);
   });
 
-  it('names every severity, with zero meaning a deliberate "Clear"', () => {
+  it('names every severity, with zero meaning a deliberate "None"', () => {
     expect(SEVERITY_LABELS).toHaveLength(4);
-    expect(severityWord(0)).toBe('Clear');
+    expect(severityWord(0)).toBe('None');
     expect(severityWord(3)).toBe('Severe');
   });
 });
@@ -71,7 +71,7 @@ describe('isEmptyDayLog', () => {
     expect(isEmptyDayLog({ symptoms: [], note: 'ears ringing' })).toBe(false);
   });
 
-  it('keeps a check-in whose only report is Clear', () => {
+  it('keeps a check-in whose only report is None', () => {
     // Severity 0 is an observation she made, not an empty answer.
     expect(isEmptyDayLog({ symptoms: [{ symptom: 'tinnitus', severity: 0 }] })).toBe(false);
   });
@@ -170,5 +170,22 @@ describe('mostReported', () => {
 
   it('is null with nothing to count', () => {
     expect(mostReported([])).toBeNull();
+  });
+
+  it('does not count a symptom she reported as None', () => {
+    // Answering "no joint pain" every morning is diligence. It must not make
+    // joint pain look like the thing she suffers from most.
+    const commonest = mostReported([
+      day('2026-07-26', [
+        { symptom: 'joint_pain', severity: 0 },
+        { symptom: 'tinnitus', severity: 1 },
+      ]),
+      day('2026-07-25', [{ symptom: 'joint_pain', severity: 0 }]),
+    ]);
+    expect(commonest).toBe('tinnitus');
+  });
+
+  it('is null when every answer was None', () => {
+    expect(mostReported([day('2026-07-26', [{ symptom: 'joint_pain', severity: 0 }])])).toBeNull();
   });
 });

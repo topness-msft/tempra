@@ -628,7 +628,7 @@ body{
     <div class="specbar">
       <span>New record type <b>day check-in</b></span>
       <span>One per <b>local date</b></span>
-      <span>Severity <b>clear · mild · moderate · severe</b></span>
+      <span>Severity <b>none · mild · moderate · severe</b></span>
       <span>Log screen <b>unchanged</b></span>
     </div>
 
@@ -642,7 +642,7 @@ body{
   <section class="thesis">
     <h3>The position</h3>
     <p>A flash is an <b>event</b>: it starts at a knowable moment, it may end, it has an intensity. Tinnitus is not an event. It was there when she woke and it is still there now. Asking "when did your brain fog start?" produces a made-up answer, and this app does not keep made-up answers.</p>
-    <p>So the second record is a <b>day check-in</b>: one row per local date, holding a severity for each symptom she chose to report, plus a note. It is not a timeline entry with a fuzzy time — it is a <b>state of a day</b>, and it is modelled as one. An untouched symptom is stored as nothing at all, which is different from <b>Clear</b>, which she tapped deliberately. "I didn't check in" and "I checked and it was fine" are not the same fact.</p>
+    <p>So the second record is a <b>day check-in</b>: one row per local date, holding a severity for each symptom she chose to report, plus a note. It is not a timeline entry with a fuzzy time — it is a <b>state of a day</b>, and it is modelled as one. An untouched symptom is stored as nothing at all, which is different from <b>None</b>, which she tapped deliberately. "I didn't check in" and "I checked and it was fine" are not the same fact.</p>
     <p>The record is keyed on the date, so writing it is an <b>upsert</b>. That falls out beautifully offline: replaying the same queued check-in twice cannot create a duplicate, so the outbox needs no client-id trick and last-tap-wins is always correct.</p>
     <p class="give"><b>What this gives up.</b> Intra-day resolution: there is no way to say the tinnitus stopped at four o'clock, and no way to record two different severities for the same symptom on the same day — the value is the worst of the day. Both are deliberate. A woman who is asked to timestamp her joint pain will stop answering by Wednesday, and the answers she does give will be guesses. One honest number per day is worth more than twelve invented ones.</p>
   </section>
@@ -748,7 +748,7 @@ body{
                 <div class="dayrow">
                   <p class="nm"><svg><use href="#i-sleep"/></svg>Sleep<i>Severe</i></p>
                   <div class="scale">
-                    <button class="s0" aria-pressed="false">Clear</button>
+                    <button class="s0" aria-pressed="false">None</button>
                     <button class="s1" aria-pressed="false">Mild</button>
                     <button class="s2" aria-pressed="false">Moderate</button>
                     <button class="s3" aria-pressed="true">Severe</button>
@@ -758,7 +758,7 @@ body{
                 <div class="dayrow">
                   <p class="nm"><svg><use href="#i-fog"/></svg>Brain fog<i>Moderate</i></p>
                   <div class="scale">
-                    <button class="s0" aria-pressed="false">Clear</button>
+                    <button class="s0" aria-pressed="false">None</button>
                     <button class="s1" aria-pressed="false">Mild</button>
                     <button class="s2" aria-pressed="true">Moderate</button>
                     <button class="s3" aria-pressed="false">Severe</button>
@@ -768,7 +768,7 @@ body{
                 <div class="dayrow">
                   <p class="nm"><svg><use href="#i-tinnitus"/></svg>Tinnitus<i>Mild</i></p>
                   <div class="scale">
-                    <button class="s0" aria-pressed="false">Clear</button>
+                    <button class="s0" aria-pressed="false">None</button>
                     <button class="s1" aria-pressed="true">Mild</button>
                     <button class="s2" aria-pressed="false">Moderate</button>
                     <button class="s3" aria-pressed="false">Severe</button>
@@ -776,9 +776,9 @@ body{
                 </div>
 
                 <div class="dayrow">
-                  <p class="nm"><svg><use href="#i-joint"/></svg>Joint pain<i>Clear</i></p>
+                  <p class="nm"><svg><use href="#i-joint"/></svg>Joint pain<i>None</i></p>
                   <div class="scale">
-                    <button class="s0" aria-pressed="true">Clear</button>
+                    <button class="s0" aria-pressed="true">None</button>
                     <button class="s1" aria-pressed="false">Mild</button>
                     <button class="s2" aria-pressed="false">Moderate</button>
                     <button class="s3" aria-pressed="false">Severe</button>
@@ -788,7 +788,7 @@ body{
                 <div class="dayrow">
                   <p class="nm"><svg><use href="#i-fatigue"/></svg>Fatigue<i>Not said</i></p>
                   <div class="scale">
-                    <button class="s0" aria-pressed="false">Clear</button>
+                    <button class="s0" aria-pressed="false">None</button>
                     <button class="s1" aria-pressed="false">Mild</button>
                     <button class="s2" aria-pressed="false">Moderate</button>
                     <button class="s3" aria-pressed="false">Severe</button>
@@ -798,7 +798,7 @@ body{
                 <div class="dayrow">
                   <p class="nm"><svg><use href="#i-mood"/></svg>Low mood<i>Not said</i></p>
                   <div class="scale">
-                    <button class="s0" aria-pressed="false">Clear</button>
+                    <button class="s0" aria-pressed="false">None</button>
                     <button class="s1" aria-pressed="false">Mild</button>
                     <button class="s2" aria-pressed="false">Moderate</button>
                     <button class="s3" aria-pressed="false">Severe</button>
@@ -831,8 +831,8 @@ body{
       </div>
 
       <aside class="annot">
-        <p class="annot-lab">Unset is not Clear</p>
-        <p class="annot-note" style="font-style:normal;margin-top:0"><b>Fatigue</b> and <b>Low mood</b> have nothing selected, and they are stored as nothing — no row, no zero, no default. <b>Joint pain</b> says <i>Clear</i>, which she tapped, and that is a real observation worth keeping. The same refusal to invent that leaves a slept-through flash with no end time.</p>
+        <p class="annot-lab">Unset is not None</p>
+        <p class="annot-note" style="font-style:normal;margin-top:0"><b>Fatigue</b> and <b>Low mood</b> have nothing selected, and they are stored as nothing — no row, no zero, no default. <b>Joint pain</b> says <i>None</i>, which she tapped, and that is a real observation worth keeping. The same refusal to invent that leaves a slept-through flash with no end time.</p>
         <p class="annot-note">Every tap upserts immediately, so there is no submit button to forget. Yesterday and the day before are reachable with the chevron — poor sleep is remembered in the morning, not at 4am.</p>
         <p class="annot-note">Four steps, not ten. A ten-point scale invites false precision on something she is estimating anyway, and it makes the row too small to hit.</p>
       </aside>
@@ -879,7 +879,6 @@ body{
                   <span class="chip s3"><i></i>Sleep · severe</span>
                   <span class="chip s2"><i></i>Brain fog · moderate</span>
                   <span class="chip s1"><i></i>Tinnitus · mild</span>
-                  <span class="chip s0"><i></i>Joint pain · clear</span>
                 </div>
 
                 <div class="entry">
@@ -916,7 +915,6 @@ body{
                 <div class="dayband">
                   <p class="bl">The day</p>
                   <span class="chip s1"><i></i>Tinnitus · mild</span>
-                  <span class="chip s0"><i></i>Sleep · clear</span>
                   <span class="chip s2"><i></i>Fatigue · moderate</span>
                 </div>
                 <p class="empty-note" style="margin:8px 0 0;font-size:15px;color:var(--plum-soft);font-style:italic">No flashes.</p>
@@ -934,6 +932,12 @@ body{
                   <div class="rail"><span class="pill none">No end</span></div>
                 </div>
               </div>
+
+              <div class="panel daygroup">
+                <p class="dayhead">Wednesday, 23 July</p>
+                <div class="dayband"><p class="none">Checked in · nothing to report</p></div>
+                <p class="empty-note" style="margin:8px 0 0;font-size:15px;color:var(--plum-soft);font-style:italic">No flashes.</p>
+              </div>
             </div>
 
             <nav class="tabs">
@@ -950,8 +954,9 @@ body{
       <aside class="annot">
         <p class="annot-lab">The day is the weather, flashes are the events</p>
         <p class="annot-note" style="font-style:normal;margin-top:0">A day-level state has no time, so it cannot be interleaved with timed rows without pretending it has one. Instead it becomes a <b>band across the head of the day it belongs to</b>: the conditions, and then what happened inside them. Nothing gets a fake timestamp and the list stays scannable.</p>
-        <p class="annot-note">Friday has a check-in and no flashes and is still a group, because "quiet day, still ringing" is a finding. Thursday says plainly that nobody checked in, rather than showing an empty band that could be read as "nothing wrong".</p>
-        <p class="annot-note">The statistics <b>split rather than merge</b>. There is no honest single number spanning an eleven-minute episode and a day of tinnitus, so the strip becomes two labelled strips. Avg severity is the mean of the severities she actually gave — unreported symptoms are absent from it, not counted as zero.</p>
+        <p class="annot-note">Friday has a check-in and no flashes and is still a group, because "quiet day, still ringing" is a finding. Thursday says plainly that nobody checked in, rather than showing an empty band that could be read as "nothing wrong". Wednesday is the third case, and it is a different fact from both: she <b>did</b> check in and everything came back <i>None</i>.</p>
+        <p class="annot-note"><b>Only mild and above get a chip.</b> Saturday's joint pain was answered <i>None</i> and is not shown — a band of nothings buries the one line that matters, and history is for scanning. The zeroes are not thrown away: they stay in the record, in the CSV, and in Avg severity below, which is where "was the tinnitus ever quiet?" gets answered.</p>
+        <p class="annot-note">The statistics <b>split rather than merge</b>. There is no honest single number spanning an eleven-minute episode and a day of tinnitus, so the strip becomes two labelled strips. Avg severity is the mean of the severities she actually gave — unreported symptoms are absent from it, not counted as zero, though a tapped <i>None</i> does count. <b>Most reported</b> ignores <i>None</i> entirely: answering "no joint pain" every morning is diligence, not suffering.</p>
       </aside>
     </section>
 

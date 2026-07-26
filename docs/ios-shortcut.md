@@ -186,7 +186,7 @@ Build **Log tinnitus** as a duplicate of the first shortcut, then:
    | --- | --- | --- |
    | Dictionary | `symptoms` | one entry — Key `tinnitus`, Type **Number**, Value `2` |
 
-Severity is `0`–`3`: **0 Clear, 1 Mild, 2 Moderate, 3 Severe**. Send `null`
+Severity is `0`–`3`: **0 None, 1 Mild, 2 Moderate, 3 Severe**. Send `null`
 instead of a number to take a symptom back to unrecorded.
 
 The symptom keys are `sleep`, `fatigue`, `brain_fog`, `low_mood`, `tinnitus`,

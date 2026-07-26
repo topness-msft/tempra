@@ -42,7 +42,7 @@ describe('writing a day check-in', () => {
     expect(saved?.symptoms).toEqual([{ symptom: 'tinnitus', severity: 1 }]);
   });
 
-  it('keeps a check-in whose only report is Clear', () => {
+  it('keeps a check-in whose only report is None', () => {
     // Severity 0 is something she tapped. It is not the same as saying nothing.
     const saved = repo.put('2026-07-26', { symptoms: [{ symptom: 'joint_pain', severity: 0 }] });
     expect(saved?.symptoms).toEqual([{ symptom: 'joint_pain', severity: 0 }]);
@@ -151,11 +151,11 @@ describe('exporting day check-ins', () => {
     expect(row).toContain('"ringing all day"');
   });
 
-  it('leaves an unreported symptom blank rather than calling it clear', () => {
+  it('leaves an unreported symptom blank rather than calling it none', () => {
     repo.put('2026-07-26', { symptoms: [{ symptom: 'joint_pain', severity: 0 }] });
     const row = toDaysCsv(repo.all()).trim().split('\r\n')[1] ?? '';
-    // joint_pain says Clear; nothing else says anything at all.
-    expect(row).toContain('"Clear"');
+    // joint_pain says None; nothing else says anything at all.
+    expect(row).toContain('"None"');
     expect(row.split(',').filter((c) => c === '').length).toBeGreaterThan(0);
   });
 

@@ -593,7 +593,7 @@ const dayView = (): string => {
 
         <p class="hintline" style="margin:0 16px">
           Anything you leave untouched stays unrecorded — that is not the same as
-          <b>Clear</b>, which says you checked.
+          <b>None</b>, which says you checked.
         </p>
       </div>
 
@@ -667,13 +667,27 @@ const entryHtml = (f: PendingFlash): string => {
  * A day-level state has no time, so it cannot be interleaved with timed rows
  * without pretending it has one. Reading it as the conditions, and the flashes
  * as what happened inside them, keeps both honest and the list scannable.
+ *
+ * Only mild and above get a chip. A row of "none" chips is visual noise that
+ * makes the one that matters harder to find, and history is for scanning. The
+ * zeroes are not discarded — they are still in the record and in the export,
+ * which is where a question like "was the tinnitus ever quiet?" gets answered.
  */
 const daybandHtml = (log: PendingDayLog | undefined): string => {
   if (!log) {
     // Said out loud, because an empty band would read as "nothing was wrong".
     return `<div class="dayband"><p class="none">No check-in for this day.</p></div>`;
   }
-  const chips = log.symptoms
+  const reported = log.symptoms.filter((s) => s.severity > 0);
+  const pendingDot = log.pending
+    ? '<span class="pending-dot" role="img" aria-label="Not synced yet"></span>'
+    : '';
+  // She checked and there was nothing to report. That is a finding of its own
+  // and reads quite differently from never having been asked.
+  if (reported.length === 0 && !log.note) {
+    return `<div class="dayband"><p class="none">Checked in · nothing to report${pendingDot}</p></div>`;
+  }
+  const chips = reported
     .map(
       (s) =>
         `<span class="chip s${s.severity}"><i></i>${esc(DAY_SYMPTOM_LABELS[s.symptom])} · ${esc(
@@ -683,10 +697,8 @@ const daybandHtml = (log: PendingDayLog | undefined): string => {
     .join('');
   return `
     <div class="dayband">
-      <p class="bl">The day${
-        log.pending ? '<span class="pending-dot" role="img" aria-label="Not synced yet"></span>' : ''
-      }</p>
-      ${chips}
+      <p class="bl">The day${pendingDot}</p>
+      ${chips || `<span class="chip s0"><i></i>Nothing to report</span>`}
       ${log.note ? `<p class="note daynote">${esc(log.note)}</p>` : ''}
     </div>`;
 };
