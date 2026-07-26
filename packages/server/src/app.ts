@@ -1,10 +1,15 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
-import { config } from './config.js';
+import fastifyCookie from '@fastify/cookie';
+import { config, dbPath } from './config.js';
+import { openDb, type Db } from './db.js';
+import { registerApi } from './api.js';
 
 export interface BuildAppOptions {
   logger?: boolean;
   serveStatic?: boolean;
+  /** Injected by tests so each suite gets an isolated in-memory database. */
+  db?: Db;
 }
 
 export const buildApp = async (opts: BuildAppOptions = {}): Promise<FastifyInstance> => {
@@ -14,11 +19,20 @@ export const buildApp = async (opts: BuildAppOptions = {}): Promise<FastifyInsta
     bodyLimit: 2 * 1024 * 1024,
   });
 
+  const db = opts.db ?? openDb(dbPath());
+  app.addHook('onClose', async () => {
+    if (!opts.db) db.close();
+  });
+
+  await app.register(fastifyCookie, { secret: config.sessionSecret });
+
   app.get('/health', async () => ({
     ok: true,
     commit: config.commit,
     time: new Date().toISOString(),
   }));
+
+  await registerApi(app, { db });
 
   const serveStatic = opts.serveStatic ?? true;
   if (serveStatic && config.webDist) {
