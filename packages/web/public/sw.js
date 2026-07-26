@@ -14,11 +14,22 @@
  * disagree — which at 3am looks like lost data.
  */
 
-const VERSION = 'tempra-v1';
+// Bumped when cached assets change identity rather than name. The icons are
+// unhashed, so an old install would otherwise keep serving the previous mark.
+const VERSION = 'tempra-v2';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 
-const PRECACHE = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/icon-180.png'];
+const PRECACHE = [
+  '/',
+  '/manifest.webmanifest',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-512-maskable.png',
+  '/icon-180.png',
+  '/favicon.svg',
+  '/favicon.ico',
+];
 
 /** Assets are content-hashed by Vite, so their names are only knowable from the shell. */
 async function precacheShellAssets(shell, assets) {

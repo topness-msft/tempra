@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tempra — icon candidates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fff9f5;
+    --rose: #e4899b;
+    --berry: #b33f66;
+    --gold: #8a6a22;
+    --gold-line: rgba(199, 154, 62, 0.5);
+    --ink: #40323a;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px 32px 96px;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #fffdfb 0%, transparent 70%),
+      var(--cream);
+    font-family: var(--sans);
+    color: var(--ink);
+  }
+  header { max-width: 1080px; margin: 0 auto 40px; }
+  h1 {
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 30px;
+    letter-spacing: 0.02em;
+    margin: 0 0 8px;
+    background: linear-gradient(102deg, var(--berry) 12%, var(--rose) 56%, #c89334 98%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header p { margin: 0; max-width: 62ch; line-height: 1.55; font-size: 14px; opacity: .8; }
+
+  .grid { max-width: 1080px; margin: 0 auto; display: grid; gap: 20px; }
+
+  .card {
+    border: 1px solid var(--gold-line);
+    border-radius: 14px;
+    background: #fffdfc;
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    align-items: center;
+  }
+  .meta .key {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .meta h2 { font-size: 17px; margin: 0 0 6px; font-weight: 500; }
+  .meta p { margin: 0; font-size: 12.5px; line-height: 1.5; opacity: .75; }
+
+  .sizes { display: flex; align-items: flex-end; gap: 26px; flex-wrap: wrap; }
+  .spec { text-align: center; }
+  .spec .lab {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+    color: var(--gold); margin-top: 8px;
+  }
+  .ios {
+    border-radius: 22.37%;
+    overflow: hidden;
+    display: block;
+    box-shadow: 0 6px 16px rgba(80, 40, 55, .18);
+  }
+  .plain { display: block; border-radius: 3px; overflow: hidden; }
+  .tabsim {
+    display: flex; align-items: center; gap: 7px;
+    background: #efe7e2; border-radius: 8px 8px 0 0;
+    padding: 7px 12px 7px 9px; margin-top: 2px;
+  }
+  .tabsim span { font-size: 11.5px; font-family: var(--sans); opacity: .8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tempra — icon candidates</h1>
+  <p>Each shown at the four sizes that decide whether a mark works: 180px (iOS Home Screen, with Apple's squircle mask), 64px, 32px, and 16px in a browser tab. A mark that only reads at 180 is a failed mark — the tab favicon is 16.</p>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const CREAM = '#FFF9F5', BERRY = '#B33F66', ROSE = '#E4899B', GOLD = '#C79A3E', GOLDD = '#8A6A22';
+
+const defs = `
+  <defs>
+    <radialGradient id="flush" cx="38%" cy="30%" r="76%">
+      <stop offset="0%" stop-color="#F2ADB9"/>
+      <stop offset="50%" stop-color="${ROSE}"/>
+      <stop offset="100%" stop-color="${BERRY}"/>
+    </radialGradient>
+    <linearGradient id="rise" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="${BERRY}"/>
+      <stop offset="100%" stop-color="${ROSE}"/>
+    </linearGradient>
+  </defs>`;
+
+const candidates = [
+  {
+    key: 'A',
+    name: 'The Arc',
+    note: 'A flash drawn as what it is — a curve over time. Rises, peaks, subsides. The gold rule is the baseline it returns to.',
+    svg: `${defs}
+      <rect width="32" height="32" fill="${CREAM}"/>
+      <path d="M3.5 22.5 C 8.5 22.5, 9.5 7.5, 16 7.5 C 22.5 7.5, 23.5 22.5, 28.5 22.5"
+            fill="none" stroke="url(#rise)" stroke-width="3" stroke-linecap="round"/>
+      <line x1="4" y1="26.4" x2="28" y2="26.4" stroke="${GOLD}" stroke-width="1.5" stroke-linecap="round"/>`
+  },
+  {
+    key: 'B',
+    name: 'Apothecary T',
+    note: 'A monogram set like a pharmacy label. The most legible option at 16px by a wide margin, and the only one that says a name.',
+    svg: `${defs}
+      <rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="13" fill="none" stroke="${GOLD}" stroke-width="1.5"/>
+      <rect x="8" y="9.5" width="16" height="3.4" rx="1.2" fill="${BERRY}"/>
+      <rect x="14.3" y="9.5" width="3.4" height="13.5" rx="1.2" fill="${BERRY}"/>`
+  },
+  {
+    key: 'C',
+    name: 'Crest',
+    note: 'Heat rising over a horizon. Solid enough to survive any size, and the gold arc gives it an emblem quality.',
+    svg: `${defs}
+      <rect width="32" height="32" fill="${CREAM}"/>
+      <path d="M6 21.5 A 10 10 0 0 1 26 21.5 Z" fill="url(#rise)"/>
+      <line x1="4" y1="21.5" x2="28" y2="21.5" stroke="${GOLDD}" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M8.5 8.5 A 12 12 0 0 1 23.5 8.5" fill="none" stroke="${GOLD}" stroke-width="1.6" stroke-linecap="round"/>`
+  },
+  {
+    key: 'D',
+    name: 'Ripple',
+    note: 'Warmth radiating outward from a core. Three arcs, each thicker than the last, so the outer ones drop away gracefully when small.',
+    svg: `${defs}
+      <rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="4.6" fill="url(#flush)"/>
+      <circle cx="16" cy="16" r="8.4" fill="none" stroke="${ROSE}" stroke-width="1.7" opacity=".85"/>
+      <circle cx="16" cy="16" r="12.4" fill="none" stroke="${GOLD}" stroke-width="1.5" opacity=".75"/>`
+  },
+  {
+    key: 'E',
+    name: 'Vessel',
+    note: 'An apothecary bottle. Leans hardest into the design direction, but the stopper and neck are the first details to vanish at 16px.',
+    svg: `${defs}
+      <rect width="32" height="32" fill="${CREAM}"/>
+      <rect x="12.6" y="5.2" width="6.8" height="3.6" rx="1.4" fill="${GOLDD}"/>
+      <path d="M13.4 8.8 h5.2 v2.6 l3.4 3.2 a3 3 0 0 1 1 2.2 V24 a2.6 2.6 0 0 1 -2.6 2.6 H11.6 A2.6 2.6 0 0 1 9 24 v-7.2 a3 3 0 0 1 1 -2.2 l3.4 -3.2 Z"
+            fill="url(#flush)"/>
+      <path d="M9.4 19.5 h13.2" stroke="${CREAM}" stroke-width="1.3" opacity=".5"/>`
+  },
+  {
+    key: 'F',
+    name: 'Ember',
+    note: 'A single flame-petal — warmth without the clinical read of a thermometer. Soft outline keeps it from looking like a hazard symbol.',
+    svg: `${defs}
+      <rect width="32" height="32" fill="${CREAM}"/>
+      <path d="M16 4.2 C 21.5 10, 24.5 13.4, 24.5 18.4 A 8.5 8.5 0 0 1 7.5 18.4 C 7.5 13.4, 10.5 10, 16 4.2 Z"
+            fill="url(#flush)"/>
+      <path d="M16 14.2 C 18.4 17, 19.4 18.2, 19.4 20 A 3.4 3.4 0 0 1 12.6 20 C 12.6 18.2, 13.6 17, 16 14.2 Z"
+            fill="${CREAM}" opacity=".55"/>`
+  },
+  {
+    key: 'G',
+    name: 'Current (the dot)',
+    note: 'What is shipped today. Included for comparison — at 16px the ring disappears and it reduces to a pink smudge.',
+    svg: `${defs}
+      <rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="13" fill="none" stroke="${GOLD}" stroke-width="1.1" opacity=".8"/>
+      <circle cx="16" cy="16" r="9.6" fill="url(#flush)"/>`
+  }
+];
+
+const SIZES = [
+  { px: 180, cls: 'ios',   lab: '180 · iOS' },
+  { px: 64,  cls: 'plain', lab: '64' },
+  { px: 32,  cls: 'plain', lab: '32' },
+  { px: 16,  cls: 'plain', lab: '16 · tab' }
+];
+
+const svgFor = (c, px) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="${px}" height="${px}" shape-rendering="geometricPrecision">${c.svg}</svg>`;
+
+document.getElementById('grid').innerHTML = candidates.map(c => `
+  <div class="card">
+    <div class="meta">
+      <div class="key">Option ${c.key}</div>
+      <h2>${c.name}</h2>
+      <p>${c.note}</p>
+    </div>
+    <div class="sizes">
+      ${SIZES.map(s => `
+        <div class="spec">
+          <div class="${s.cls}" style="width:${s.px}px;height:${s.px}px">${svgFor(c, s.px)}</div>
+          <div class="lab">${s.lab}</div>
+        </div>`).join('')}
+      <div class="spec">
+        <div class="tabsim">
+          <div style="width:16px;height:16px">${svgFor(c, 16)}</div>
+          <span>Tempra</span>
+        </div>
+        <div class="lab">in a tab</div>
+      </div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>

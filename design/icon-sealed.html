@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tempra — lean in a circle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream:#fff9f5; --rose:#e4899b; --berry:#b33f66; --gold:#8a6a22;
+    --gold-line:rgba(199,154,62,.5); --ink:#40323a;
+    --mono:'IBM Plex Mono',ui-monospace,monospace; --sans:'IBM Plex Sans',-apple-system,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:48px 32px 96px;
+    background:radial-gradient(1200px 600px at 50% -10%,#fffdfb 0%,transparent 70%),var(--cream);
+    font-family:var(--sans); color:var(--ink); }
+  header { max-width:1080px; margin:0 auto 40px; }
+  h1 { font-family:var(--mono); font-weight:400; font-size:30px; letter-spacing:.02em; margin:0 0 8px;
+    background:linear-gradient(102deg,var(--berry) 12%,var(--rose) 56%,#c89334 98%);
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  header p { margin:0; max-width:64ch; line-height:1.55; font-size:14px; opacity:.8; }
+  .grid { max-width:1080px; margin:0 auto; display:grid; gap:20px; }
+  .card { border:1px solid var(--gold-line); border-radius:14px; background:#fffdfc;
+    padding:20px 22px; display:grid; grid-template-columns:210px 1fr; gap:24px; align-items:center; }
+  .meta .key { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+  .meta h2 { font-size:17px; margin:0 0 6px; font-weight:500; }
+  .meta p { margin:0; font-size:12.5px; line-height:1.5; opacity:.75; }
+  .sizes { display:flex; align-items:flex-end; gap:26px; flex-wrap:wrap; }
+  .spec { text-align:center; }
+  .spec .lab { font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--gold); margin-top:8px; }
+  .ios { border-radius:22.37%; overflow:hidden; display:block; box-shadow:0 6px 16px rgba(80,40,55,.18); }
+  .plain { display:block; border-radius:3px; overflow:hidden; }
+  .tabsim { display:flex; align-items:center; gap:7px; background:#efe7e2; border-radius:8px 8px 0 0; padding:7px 12px 7px 9px; margin-top:2px; }
+  .tabsim span { font-size:11.5px; opacity:.8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lean, sealed in a circle</h1>
+  <p>The ring and the flame compete for the same 32 units. Too heavy a ring and the flame shrinks to a speck; too light and the seal stops reading. These four move that balance, and the last one inverts it so the mark still holds at 16px.</p>
+</header>
+<div class="grid" id="grid"></div>
+
+<script>
+const CREAM='#FFF9F5', BERRY='#B33F66', ROSE='#E4899B', GOLD='#C79A3E', GOLDD='#8A6A22';
+const defs = `
+<defs>
+  <linearGradient id="fl" x1="0" y1="1" x2=".25" y2="0">
+    <stop offset="0%" stop-color="#9E3159"/><stop offset="45%" stop-color="${BERRY}"/><stop offset="100%" stop-color="#EE9FAF"/>
+  </linearGradient>
+  <linearGradient id="flL" x1="0" y1="1" x2=".25" y2="0">
+    <stop offset="0%" stop-color="#C95077"/><stop offset="100%" stop-color="#F6BFC9"/>
+  </linearGradient>
+  <radialGradient id="disc" cx="38%" cy="30%" r="78%">
+    <stop offset="0%" stop-color="#C74F76"/><stop offset="100%" stop-color="#9E3159"/>
+  </radialGradient>
+</defs>`;
+
+const FLAME = "M17.4 3.2 C 18.4 8.4, 23.4 10.8, 23.4 17.0 A 7.4 7.4 0 0 1 8.6 17.0 C 8.6 12.6, 12.0 10.6, 13.2 6.4 C 14.4 8.8, 15.6 8.2, 17.4 3.2 Z";
+const flame = (scale, cy=16, fill='url(#fl)') =>
+  `<g transform="translate(16,${cy}) scale(${scale}) translate(-16,-16)"><path d="${FLAME}" fill="${fill}"/></g>`;
+
+const cands = [
+  { key:'S1', name:'Seal', note:'Heavier ring, flame held well clear of it. The most formal — an apothecary stamp. The flame pays for the ring in size.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="13.2" fill="none" stroke="${GOLD}" stroke-width="1.7"/>${flame(.80)}` },
+
+  { key:'S2', name:'Open', note:'Thinner ring pushed outward, flame grown to fill it. Best balance of the upright options — the flame leads, the ring frames.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="14.1" fill="none" stroke="${GOLD}" stroke-width="1.2"/>${flame(.94)}` },
+
+  { key:'S3', name:'Breaking', note:'The flame outgrows its ring and crosses it, with a cream halo cutting the line. Least static — heat escaping containment.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="12.4" fill="none" stroke="${GOLD}" stroke-width="1.6"/>
+      <g transform="translate(16,16.6) scale(1.06) translate(-16,-16)">
+        <path d="${FLAME}" fill="none" stroke="${CREAM}" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="${FLAME}" fill="url(#fl)"/>
+      </g>` },
+
+  { key:'S4', name:'Struck', note:'Inverted: a berry disc with the flame knocked out in cream, ringed in gold. Two shapes instead of three, which is why it still reads at 16px.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="13.6" fill="url(#disc)"/>
+      <circle cx="16" cy="16" r="13.6" fill="none" stroke="${GOLD}" stroke-width="1.5"/>
+      ${flame(.80, 16, CREAM)}` },
+
+  { key:'S5', name:'Struck, no ring', note:'The same inversion with the ring dropped — what the 16px favicon would use if the ring proves too fine to survive.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+      <circle cx="16" cy="16" r="14.2" fill="url(#disc)"/>${flame(.84, 16, CREAM)}` }
+];
+
+const SIZES = [
+  { px:180, cls:'ios',   lab:'180 · iOS' },
+  { px:64,  cls:'plain', lab:'64' },
+  { px:32,  cls:'plain', lab:'32' },
+  { px:16,  cls:'plain', lab:'16 · tab' }
+];
+const svgFor=(c,px)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="${px}" height="${px}">${c.svg}</svg>`;
+document.getElementById('grid').innerHTML = cands.map(c=>`
+  <div class="card">
+    <div class="meta"><div class="key">Option ${c.key}</div><h2>${c.name}</h2><p>${c.note}</p></div>
+    <div class="sizes">
+      ${SIZES.map(s=>`<div class="spec"><div class="${s.cls}" style="width:${s.px}px;height:${s.px}px">${svgFor(c,s.px)}</div><div class="lab">${s.lab}</div></div>`).join('')}
+      <div class="spec"><div class="tabsim"><div style="width:16px;height:16px">${svgFor(c,16)}</div><span>Tempra</span></div><div class="lab">in a tab</div></div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>

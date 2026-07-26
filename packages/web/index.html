@@ -10,7 +10,12 @@
     <title>Tempra</title>
 
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icon-192.png" type="image/png" />
+
+    <!-- Browsers request /favicon.ico by path whether or not it is declared, so
+         a real file has to exist there; otherwise the SPA catch-all answers with
+         index.html and the tab shows a broken-image glyph. -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
 
     <!-- Lets the Home Screen icon open without Safari chrome, which is the only

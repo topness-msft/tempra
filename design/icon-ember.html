@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tempra — ember refinements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fff9f5; --rose: #e4899b; --berry: #b33f66;
+    --gold: #8a6a22; --gold-line: rgba(199,154,62,.5); --ink: #40323a;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 32px 96px;
+    background: radial-gradient(1200px 600px at 50% -10%, #fffdfb 0%, transparent 70%), var(--cream);
+    font-family: var(--sans); color: var(--ink);
+  }
+  header { max-width: 1080px; margin: 0 auto 40px; }
+  h1 {
+    font-family: var(--mono); font-weight: 400; font-size: 30px; letter-spacing: .02em; margin: 0 0 8px;
+    background: linear-gradient(102deg, var(--berry) 12%, var(--rose) 56%, #c89334 98%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header p { margin: 0; max-width: 64ch; line-height: 1.55; font-size: 14px; opacity: .8; }
+  .grid { max-width: 1080px; margin: 0 auto; display: grid; gap: 20px; }
+  .card {
+    border: 1px solid var(--gold-line); border-radius: 14px; background: #fffdfc;
+    padding: 20px 22px; display: grid; grid-template-columns: 210px 1fr; gap: 24px; align-items: center;
+  }
+  .meta .key { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  .meta h2 { font-size: 17px; margin: 0 0 6px; font-weight: 500; }
+  .meta p { margin: 0; font-size: 12.5px; line-height: 1.5; opacity: .75; }
+  .sizes { display: flex; align-items: flex-end; gap: 26px; flex-wrap: wrap; }
+  .spec { text-align: center; }
+  .spec .lab { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--gold); margin-top: 8px; }
+  .ios { border-radius: 22.37%; overflow: hidden; display: block; box-shadow: 0 6px 16px rgba(80,40,55,.18); }
+  .plain { display: block; border-radius: 3px; overflow: hidden; }
+  .tabsim { display: flex; align-items: center; gap: 7px; background: #efe7e2; border-radius: 8px 8px 0 0; padding: 7px 12px 7px 9px; margin-top: 2px; }
+  .tabsim span { font-size: 11.5px; opacity: .8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ember — refinements</h1>
+  <p>The original ember read as a water droplet: symmetrical, round-bottomed, with a highlight that looked like a reflection. Fire reads as fire when the tip <em>leans</em>, the base is uneven, and there is a hotter core inside. Each variant below pushes that further.</p>
+</header>
+<div class="grid" id="grid"></div>
+
+<script>
+const CREAM='#FFF9F5', BERRY='#B33F66', ROSE='#E4899B', GOLD='#C79A3E', GOLDD='#8A6A22';
+
+const defs = `
+<defs>
+  <linearGradient id="fl" x1="0" y1="1" x2=".25" y2="0">
+    <stop offset="0%" stop-color="#9E3159"/>
+    <stop offset="45%" stop-color="${BERRY}"/>
+    <stop offset="100%" stop-color="#EE9FAF"/>
+  </linearGradient>
+  <linearGradient id="core" x1="0" y1="1" x2="0" y2="0">
+    <stop offset="0%" stop-color="#F0A6B4"/>
+    <stop offset="100%" stop-color="#F2C879"/>
+  </linearGradient>
+  <radialGradient id="orb" cx="38%" cy="30%" r="76%">
+    <stop offset="0%" stop-color="#F2ADB9"/><stop offset="50%" stop-color="${ROSE}"/><stop offset="100%" stop-color="${BERRY}"/>
+  </radialGradient>
+</defs>`;
+
+// Asymmetric flame: tip leans right, notch on the left shoulder.
+const FLAME = "M17.4 3.2 C 18.4 8.4, 23.4 10.8, 23.4 17.0 A 7.4 7.4 0 0 1 8.6 17.0 C 8.6 12.6, 12.0 10.6, 13.2 6.4 C 14.4 8.8, 15.6 8.2, 17.4 3.2 Z";
+const CORE  = "M16.9 12.2 C 17.4 14.8, 19.6 15.8, 19.6 18.4 A 3.6 3.6 0 0 1 12.4 18.4 C 12.4 16.4, 14.4 15.6, 15.0 13.4 C 15.6 14.6, 16.2 14.2, 16.9 12.2 Z";
+
+const cands = [
+  { key:'F1', name:'Lean', note:'The base shape, fixed. Tip leans right, left shoulder notched. No inner highlight — that was the thing reading as a water reflection.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/><path d="${FLAME}" fill="url(#fl)"/>` },
+
+  { key:'F2', name:'Hot core', note:'A second flame inside, in gold-to-rose. The two-tone is what fire has and water does not, and it survives further down than any outline detail.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/><path d="${FLAME}" fill="url(#fl)"/><path d="${CORE}" fill="url(#core)"/>` },
+
+  { key:'F3', name:'Sealed', note:'Hot core inside the apothecary gold ring, tying it to the login wordmark. Most "brand", but the ring costs the flame room.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/><circle cx="16" cy="16" r="13.2" fill="none" stroke="${GOLD}" stroke-width="1.5"/>
+        <g transform="translate(16,16) scale(.74) translate(-16,-16)"><path d="${FLAME}" fill="url(#fl)"/><path d="${CORE}" fill="url(#core)"/></g>` },
+
+  { key:'F4', name:'Rising', note:'The flame sat on the gold baseline from the Arc — heat rising from a resting line. Keeps a thread back to the data the app records.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+        <g transform="translate(16,15.2) scale(.92) translate(-16,-16)"><path d="${FLAME}" fill="url(#fl)"/><path d="${CORE}" fill="url(#core)"/></g>
+        <line x1="5.2" y1="27.2" x2="26.8" y2="27.2" stroke="${GOLDD}" stroke-width="1.7" stroke-linecap="round"/>` },
+
+  { key:'F5', name:'Solo lick', note:'A single flame with a curled tip and no core — the most graphic and the boldest at 16px, but it loses the warmth of the two-tone.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+        <path d="M18.6 2.8 C 18.2 8.6, 23.8 10.4, 23.8 17.2 A 7.8 7.8 0 0 1 8.2 17.2 C 8.2 13.4, 10.6 11.8, 12.4 9.2 C 12.8 12.0, 14.2 12.6, 15.2 11.2 C 16.6 9.2, 17.4 6.2, 18.6 2.8 Z" fill="url(#fl)"/>` },
+
+  { key:'F0', name:'Original (droplet)', note:'For comparison — symmetrical, round-bottomed, inner highlight. Reads as water.',
+    svg:`${defs}<rect width="32" height="32" fill="${CREAM}"/>
+        <path d="M16 4.2 C 21.5 10, 24.5 13.4, 24.5 18.4 A 8.5 8.5 0 0 1 7.5 18.4 C 7.5 13.4, 10.5 10, 16 4.2 Z" fill="url(#orb)"/>
+        <path d="M16 14.2 C 18.4 17, 19.4 18.2, 19.4 20 A 3.4 3.4 0 0 1 12.6 20 C 12.6 18.2, 13.6 17, 16 14.2 Z" fill="${CREAM}" opacity=".55"/>` }
+];
+
+const SIZES = [
+  { px:180, cls:'ios',   lab:'180 · iOS' },
+  { px:64,  cls:'plain', lab:'64' },
+  { px:32,  cls:'plain', lab:'32' },
+  { px:16,  cls:'plain', lab:'16 · tab' }
+];
+const svgFor = (c,px) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="${px}" height="${px}">${c.svg}</svg>`;
+
+document.getElementById('grid').innerHTML = cands.map(c=>`
+  <div class="card">
+    <div class="meta"><div class="key">Option ${c.key}</div><h2>${c.name}</h2><p>${c.note}</p></div>
+    <div class="sizes">
+      ${SIZES.map(s=>`<div class="spec"><div class="${s.cls}" style="width:${s.px}px;height:${s.px}px">${svgFor(c,s.px)}</div><div class="lab">${s.lab}</div></div>`).join('')}
+      <div class="spec"><div class="tabsim"><div style="width:16px;height:16px">${svgFor(c,16)}</div><span>Tempra</span></div><div class="lab">in a tab</div></div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>
