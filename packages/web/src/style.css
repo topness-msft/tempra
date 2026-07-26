@@ -220,6 +220,23 @@ a.btn {
   vertical-align: middle;
 }
 
+/* Explanatory prose inside a panel — the 17pt body floor still applies. */
+.bodytext {
+  margin: 4px 0 16px;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--plum-soft);
+}
+
+/* States the consequence of the button below it. Lives in the scrolling content
+   rather than the fixed footer, which has a strict height budget on a phone. */
+.ctanote {
+  margin: -6px 2px 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--plum-soft);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

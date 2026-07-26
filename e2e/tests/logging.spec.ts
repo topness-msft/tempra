@@ -81,17 +81,109 @@ test('backing out of the end screen leaves the flash running', async ({ page }) 
   expect(flashes.flashes[0].endedAt).toBeNull();
 });
 
+/*
+ * A second flash can arrive before the first is over. She must be able to log it
+ * without first pretending to know when the previous one stopped.
+ */
+test('a second flash can be started in-app while one is still running', async ({ page }) => {
+  await page.locator('.slider').fill('7');
+  await page.locator('[data-act="begin"]').click();
+  await expect(page.locator('.ribbon')).toBeVisible();
+
+  await page.locator('[data-act="compose-new"]').click();
+
+  // The controls reset to blank defaults for the new flash, rather than
+  // carrying over the running one's recorded intensity.
+  await expect(page.locator('.gauge .val')).toContainText('4');
+  await expect(page.locator('.ctanote')).toContainText('no end time');
+  // The one still running stays visible above.
+  await expect(page.locator('.ribbon')).toBeVisible();
+
+  await page.locator('.slider').fill('9');
+  await page.locator('[data-act="begin"]').click();
+
+  await expect(page.locator('.ribbon')).toContainText('Intensity 9');
+
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes).toHaveLength(2);
+  const superseded = flashes.find((f: { status: string }) => f.status === 'superseded');
+  expect(superseded.intensity).toBe(7);
+  expect(superseded.endedAt).toBeNull();
+  expect(superseded.durationMin).toBeNull();
+  expect(flashes.filter((f: { status: string }) => f.status === 'active')).toHaveLength(1);
+});
+
+test('backing out of composing a second flash returns to editing the running one', async ({
+  page,
+}) => {
+  await page.locator('.slider').fill('7');
+  await page.locator('[data-act="begin"]').click();
+  await page.locator('[data-act="compose-new"]').click();
+  await page.locator('[data-act="cancel-new"]').click();
+
+  // The controls go back to showing the running flash, not blank defaults.
+  await expect(page.locator('.gauge .val')).toContainText('7');
+  await expect(page.locator('[data-act="save"]')).toBeVisible();
+
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes).toHaveLength(1);
+});
+
+/*
+ * The likeliest flash of all is the one she sleeps through. Hours later the
+ * timer is not evidence of anything, so the app must stop offering it as one.
+ */
+test('a flash that ran past an hour is closed without a fabricated duration', async ({ page }) => {
+  const startedAt = new Date(Date.now() - 5 * 60 * 60_000).toISOString();
+  const res = await page.request.post('/api/flashes', { data: { startedAt, source: 'homekit' } });
+  expect(res.status()).toBe(201);
+
+  await page.reload();
+  await page.locator('[data-act="open-end"]').click();
+
+  const confirm = page.locator('[data-act="confirm-end"]');
+  await expect(confirm).toHaveText('Close without a duration');
+  // No slider is offered by default: there is nothing honest to prefill it with.
+  await expect(page.locator('.slider.dur')).toHaveCount(0);
+  await confirm.click();
+
+  await expect(page.locator('.ribbon')).toHaveCount(0);
+
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes[0].status).toBe('ended');
+  expect(flashes[0].endedAt).toBeNull();
+  expect(flashes[0].durationMin).toBeNull();
+});
+
+test('an overrun flash still accepts a duration she remembers, capped at an hour', async ({
+  page,
+}) => {
+  const startedAt = new Date(Date.now() - 5 * 60 * 60_000).toISOString();
+  await page.request.post('/api/flashes', { data: { startedAt, source: 'homekit' } });
+
+  await page.reload();
+  await page.locator('[data-act="open-end"]').click();
+  await page.locator('[data-act="end-manual"]').click();
+
+  const slider = page.locator('.slider.dur');
+  await expect(slider).toHaveAttribute('max', '60');
+  await slider.fill('25');
+  await page.locator('[data-act="confirm-end"]').click();
+
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes[0].durationMin).toBe(25);
+});
+
 test('a flash started from a Shortcut supersedes the running one without inventing a duration', async ({
   page,
 }) => {
   await page.locator('[data-act="begin"]').click();
   await expect(page.locator('.ribbon')).toBeVisible();
 
-  // The in-app CTA deliberately cannot start a second flash while one runs — it
-  // becomes "Save these details" instead. Supersession only happens from the
-  // Shortcut or the bedside button, so that is the path worth testing.
+  // With a flash running the CTA edits it; starting another is a deliberate,
+  // separate action. Both paths supersede, and neither invents a duration.
   await expect(page.locator('[data-act="save"]')).toBeVisible();
-  await expect(page.locator('[data-act="begin"]')).toHaveCount(0);
+  await expect(page.locator('[data-act="compose-new"]')).toBeVisible();
 
   const res = await page.request.post('/api/flashes', {
     data: { intensity: 5, source: 'shortcut' },

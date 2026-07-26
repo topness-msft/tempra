@@ -155,15 +155,18 @@ export class FlashRepo {
     return flash;
   }
 
-  /** Close a flash deliberately. Returns null when there is nothing to close. */
-  end(id: string | null, endedAtRaw?: string): Flash | null {
+  /**
+   * Closes a flash. Passing `endedAtRaw: null` closes it *without* an end time:
+   * a flash slept through is over, but when it stopped is unknowable and will
+   * not be invented. Duration and end time always travel together.
+   */
+  end(id: string | null, endedAtRaw?: string | null): Flash | null {
     const target = id ? this.get(id) : this.active();
     if (!target || target.status !== 'active') return null;
 
     const row = this.db.prepare('SELECT * FROM flashes WHERE id = ?').get(target.id) as FlashRow;
-    const endedAt = endedAtRaw ?? new Date().toISOString();
-    const endedUtc = toUtcIso(endedAt);
-    const duration = durationMinutes(row.started_at, endedUtc);
+    const endedUtc = endedAtRaw === null ? null : toUtcIso(endedAtRaw ?? new Date().toISOString());
+    const duration = endedUtc === null ? null : durationMinutes(row.started_at, endedUtc);
 
     this.db
       .prepare(

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { openDb, type Db } from '../src/db.js';
+import { openDb, migrate, type Db } from '../src/db.js';
 import { FlashRepo } from '../src/repo.js';
 
 let db: Db;
@@ -47,6 +47,47 @@ describe('starting a flash', () => {
   });
 });
 
+/*
+ * Making duration optional meant rebuilding `flashes`, which means dropping a
+ * table that symptoms and sketches reference. With foreign keys enforced that
+ * DROP silently cascades them away, so the rebuild is exercised directly.
+ */
+describe('migrations', () => {
+  it('preserves symptoms and sketches when the flashes table is rebuilt', () => {
+    const f = repo.start({
+      symptoms: ['sweating', 'anxiety'],
+      sketch: { width: 300, height: 200, strokes: [{ color: '#b33f66', points: [{ x: 1, y: 2, w: 3 }] }] },
+    });
+
+    db.pragma('user_version = 1');
+    migrate(db);
+
+    const after = repo.get(f.id);
+    expect(after?.symptoms).toEqual(['anxiety', 'sweating']);
+    expect(after?.sketch?.strokes).toHaveLength(1);
+  });
+
+  it('restores foreign key enforcement afterwards', () => {
+    db.pragma('user_version = 1');
+    migrate(db);
+    expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
+  });
+
+  it('keeps the one-active index after the rebuild', () => {
+    repo.start({});
+    db.pragma('user_version = 1');
+    migrate(db);
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO flashes (id, started_at, tz_offset_min, status, source, created_at, updated_at)
+           VALUES ('x', '2026-01-01T03:00:00Z', 0, 'active', 'app', '2026-01-01T03:00:00Z', '2026-01-01T03:00:00Z')`,
+        )
+        .run(),
+    ).toThrow();
+  });
+});
+
 describe('idempotency', () => {
   it('returns the same flash for a repeated clientId instead of duplicating', () => {
     const a = repo.start({ clientId: 'shortcut-abc', source: 'shortcut' });
@@ -79,6 +120,25 @@ describe('ending a flash', () => {
 
   it('returns null when nothing is running', () => {
     expect(repo.end(null)).toBeNull();
+  });
+
+  /*
+   * The commonest flash of all is the one she sleeps through: the bed cools,
+   * she settles, and nobody is awake to close it. Requiring an end time would
+   * make the normal case the one the app cannot record.
+   */
+  it('closes without an end time when the duration is unknowable', () => {
+    const f = repo.start({ startedAt: '2026-01-01T03:00:00Z' });
+    const closed = repo.end(f.id, null);
+    expect(closed?.status).toBe('ended');
+    expect(closed?.endedAt).toBeNull();
+    expect(closed?.durationMin).toBeNull();
+  });
+
+  it('leaves nothing running after closing without an end time', () => {
+    const f = repo.start({ startedAt: '2026-01-01T03:00:00Z' });
+    repo.end(f.id, null);
+    expect(repo.active()).toBeNull();
   });
 
   it('refuses to end an already-ended flash twice', () => {
@@ -115,6 +175,28 @@ describe('database-level invariants', () => {
     expect(() =>
       db
         .prepare("UPDATE flashes SET status = 'superseded', duration_min = 20 WHERE id = ?")
+        .run(f.id),
+    ).toThrow();
+  });
+
+  /*
+   * Duration became optional, but the two fields still travel together. Either
+   * one alone would be a number nobody observed.
+   */
+  it('rejects an ended row holding a duration with no end time', () => {
+    const f = repo.start({});
+    expect(() =>
+      db
+        .prepare("UPDATE flashes SET status = 'ended', duration_min = 20 WHERE id = ?")
+        .run(f.id),
+    ).toThrow();
+  });
+
+  it('rejects an ended row holding an end time with no duration', () => {
+    const f = repo.start({});
+    expect(() =>
+      db
+        .prepare("UPDATE flashes SET status = 'ended', ended_at = '2026-01-01T04:00:00Z' WHERE id = ?")
         .run(f.id),
     ).toThrow();
   });

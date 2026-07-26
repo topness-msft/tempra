@@ -126,8 +126,18 @@ let serverState: AppState = cachedState();
 let state: AppState = projectState(serverState);
 let tab: Tab = 'log';
 let draft: Draft = blankDraft();
+/**
+ * True while she is filling in a *second* flash that starts before the first is
+ * over. The running flash stays on screen in the ribbon; beginning the new one
+ * supersedes it, deliberately leaving it without an end time.
+ */
+let composingNew = false;
 let ending = false;
 let endMinutes = 0;
+/** Captured when the end screen opens: the flash had run past the hour. */
+let endOverrun = false;
+/** She overrode the above and wants to supply a duration from memory. */
+let endManual = false;
 let endNote = '';
 let authed = true;
 let online = navigator.onLine;
@@ -253,6 +263,9 @@ const drawoverHtml = (): string => `
 
 const logView = (): string => {
   const active = state.active;
+  // With a flash running the controls edit *it*, unless she has explicitly
+  // started composing a new entry — a second flash before the first is over.
+  const editing = active !== null && !composingNew;
   const d = draft;
   const pct = ((d.intensity - 1) / 9) * 100;
 
@@ -274,9 +287,14 @@ const logView = (): string => {
 
       <div class="scroll">
         <div class="hd">
-          <p class="kicker">${active ? 'Happening now' : 'New entry'}</p>
-          <h2 class="h1">${active ? 'How is <em>it going?</em>' : 'How does this <em>one feel?</em>'}</h2>
+          <p class="kicker">${editing ? 'Happening now' : 'New entry'}</p>
+          <h2 class="h1">${editing ? 'How is <em>it going?</em>' : 'How does this <em>one feel?</em>'}</h2>
         </div>
+        ${
+          active && composingNew
+            ? `<p class="ctanote">The ${clock(active.startedAt)} flash stays open, with no end time.</p>`
+            : ''
+        }
         <div class="panel warm intensity">
           <div class="gauge">
             <span class="val">${d.intensity}<small>/10</small></span>
@@ -299,9 +317,16 @@ const logView = (): string => {
       </div>
 
       <div class="cta">
-        <button class="btn btn-primary" data-act="${active ? 'save' : 'begin'}">
-          ${active ? 'Save these details' : `Begin flash · ${clock(new Date().toISOString())}`}
+        <button class="btn btn-primary" data-act="${editing ? 'save' : 'begin'}">
+          ${editing ? 'Save these details' : `Begin flash · ${clock(new Date().toISOString())}`}
         </button>
+        ${
+          editing
+            ? `<button class="btn btn-quiet" style="margin-top:6px" data-act="compose-new">Another one is starting</button>`
+            : active
+              ? `<button class="btn btn-quiet" style="margin-top:6px" data-act="cancel-new">Cancel</button>`
+              : ''
+        }
       </div>
 
       ${tabsHtml()}
@@ -310,11 +335,56 @@ const logView = (): string => {
   `;
 };
 
+/**
+ * Past an hour the on-screen timer stops being evidence. A flash that has been
+ * "running" for hours was almost certainly slept through — the bed cooled, she
+ * settled, and nobody was awake to close it. Offering a measured duration there
+ * would be inventing data, so the app stops offering one.
+ */
+const MAX_DURATION_MIN = 60;
+
+/** Deliberately vague: precision here would imply a measurement we don't have. */
+const roughSpan = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  if (hours < 1) return `${minutes} minutes`;
+  if (hours === 1) return 'over an hour';
+  return `about ${hours} hours`;
+};
+
 const endView = (): string => {
   const active = state.active;
   if (!active) return logView();
-  const pct = ((endMinutes - 1) / 89) * 100;
+
+  // When it overran, a duration is opt-in rather than the default.
+  const askDuration = !endOverrun || endManual;
+  const pct = ((endMinutes - 1) / (MAX_DURATION_MIN - 1)) * 100;
   const endsAt = new Date(Date.parse(active.startedAt) + endMinutes * 60_000).toISOString();
+
+  const durationPanel = askDuration
+    ? `<div class="panel warm">
+         <p class="lab">Duration <u>${endOverrun ? 'your estimate' : 'measured'}</u></p>
+         <div class="gauge">
+           <span class="val dur-val">${endMinutes}<small>min</small></span>
+           <span class="word dur-end">ends ${clock(endsAt)}</span>
+         </div>
+         <input class="slider dur" type="range" min="1" max="${MAX_DURATION_MIN}" step="1" value="${endMinutes}"
+                aria-label="Duration in minutes, 1 to ${MAX_DURATION_MIN}" style="--pct:${pct}%">
+         <div class="key"><span>1 min</span><span>${MAX_DURATION_MIN} min</span></div>
+         <p class="hintline">${
+           endOverrun
+             ? 'Only you know this one — the timer ran too long to trust.'
+             : `We timed ${endMinutes} minutes. Drag only if that's not right.`
+         }</p>
+       </div>`
+    : `<div class="panel warm">
+         <p class="lab">Duration <u>not recorded</u></p>
+         <p class="bodytext">It has been running for ${roughSpan(
+           Math.round((Date.now() - Date.parse(active.startedAt)) / 60_000),
+         )} — long enough that you were probably asleep. We'll record that the flash
+           happened and leave the end time blank rather than guess it.</p>
+         <button class="btn btn-quiet" data-act="end-manual">I know roughly how long it was</button>
+       </div>`;
+
   return `
     <div class="stage">
       <div class="sheetbar">
@@ -324,26 +394,20 @@ const endView = (): string => {
       <div class="scroll">
         <div class="hd">
           <p class="kicker">Started ${clock(active.startedAt)}</p>
-          <h2 class="h1">How long did <em>it last?</em></h2>
+          <h2 class="h1">${
+            endOverrun && !endManual ? 'Close this <em>one out</em>' : 'How long did <em>it last?</em>'
+          }</h2>
         </div>
-        <div class="panel warm">
-          <p class="lab">Duration <u>measured</u></p>
-          <div class="gauge">
-            <span class="val dur-val">${endMinutes}<small>min</small></span>
-            <span class="word dur-end">ends ${clock(endsAt)}</span>
-          </div>
-          <input class="slider dur" type="range" min="1" max="90" step="1" value="${endMinutes}"
-                 aria-label="Duration in minutes, 1 to 90" style="--pct:${pct}%">
-          <div class="key"><span>1 min</span><span>90 min</span></div>
-          <p class="hintline">We timed ${endMinutes} minutes. Drag only if that's not right.</p>
-        </div>
+        ${durationPanel}
         <div class="panel">
           <p class="lab">Add a closing note</p>
           <textarea class="field" id="endnote" rows="2" placeholder="Passed after opening a window…">${esc(endNote)}</textarea>
         </div>
       </div>
       <div class="cta">
-        <button class="btn btn-primary" data-act="confirm-end">Confirm end · ${endMinutes} min</button>
+        <button class="btn btn-primary" data-act="confirm-end">${
+          askDuration ? `Confirm end · ${endMinutes} min` : 'Close without a duration'
+        }</button>
         <button class="btn btn-quiet" style="margin-top:6px" data-act="cancel-end">Cancel — leave it running</button>
       </div>
       ${tabsHtml()}
@@ -631,6 +695,9 @@ const openDrawover = (): void => {
 let draftFor: string | null = null;
 
 const syncDraftToActive = (): void => {
+  // While a second flash is being composed the controls belong to the one about
+  // to start, not the one still running, so a refresh must not reseed them.
+  if (composingNew) return;
   const active = state.active;
   const id = active?.id ?? null;
   if (id === draftFor) return;
@@ -653,6 +720,7 @@ const refresh = async (): Promise<void> => {
 };
 
 const beginFlash = async (): Promise<void> => {
+  const superseding = state.active !== null;
   const ok = await startFlash({
     startedAt: new Date().toISOString(),
     intensity: draft.intensity,
@@ -663,7 +731,15 @@ const beginFlash = async (): Promise<void> => {
   });
   // The draft is reseeded from whatever becomes active; syncDraftToActive owns
   // it so there is only one place that decides what the controls show.
-  toast(ok ? 'Flash started' : 'Saved — will sync when back online');
+  composingNew = false;
+  draftFor = null;
+  toast(
+    ok
+      ? superseding
+        ? 'New flash started · previous left open'
+        : 'Flash started'
+      : 'Saved — will sync when back online',
+  );
   await refresh();
 };
 
@@ -683,12 +759,18 @@ const saveDetails = async (): Promise<void> => {
 const confirmEnd = async (): Promise<void> => {
   const active = state.active;
   if (!active) return;
-  const endedAt = new Date(Date.parse(active.startedAt) + endMinutes * 60_000).toISOString();
+  // No duration when she never had one to give: the record still says the flash
+  // happened, it just doesn't claim to know when it stopped.
+  const withDuration = !endOverrun || endManual;
+  const endedAt = withDuration
+    ? new Date(Date.parse(active.startedAt) + endMinutes * 60_000).toISOString()
+    : null;
   if (endNote.trim()) await updateFlash(active.id, { note: endNote.trim() });
   const ok = await endFlash(active.id, { endedAt });
   ending = false;
   endNote = '';
-  toast(ok ? `Ended · ${endMinutes} min` : 'Saved — will sync when back online');
+  const what = withDuration ? `Ended · ${endMinutes} min` : 'Closed · no duration recorded';
+  toast(ok ? what : 'Saved — will sync when back online');
   await refresh();
 };
 
@@ -763,14 +845,20 @@ root.addEventListener('click', (e) => {
     case 'open-end': {
       const active = state.active;
       if (!active) break;
-      endMinutes = Math.max(
-        1,
-        Math.min(90, Math.round((Date.now() - Date.parse(active.startedAt)) / 60_000)),
-      );
+      const measured = Math.round((Date.now() - Date.parse(active.startedAt)) / 60_000);
+      endOverrun = measured > MAX_DURATION_MIN;
+      endManual = false;
+      // On an overrun the timer is not evidence, so the slider starts from a
+      // neutral half hour instead of a number we know to be wrong.
+      endMinutes = endOverrun ? 30 : Math.max(1, Math.min(MAX_DURATION_MIN, measured));
       ending = true;
       render();
       break;
     }
+    case 'end-manual':
+      endManual = true;
+      render();
+      break;
     case 'cancel-end':
       ending = false;
       render();
@@ -780,6 +868,17 @@ root.addEventListener('click', (e) => {
       break;
     case 'begin':
       void beginFlash();
+      break;
+    case 'compose-new':
+      composingNew = true;
+      draft = blankDraft();
+      render();
+      break;
+    case 'cancel-new':
+      composingNew = false;
+      draftFor = null;
+      syncDraftToActive();
+      render();
       break;
     case 'save':
       void saveDetails();
@@ -806,7 +905,7 @@ root.addEventListener('input', (e) => {
   if (el.classList.contains('dur')) {
     endMinutes = Number(el.value);
     const active = state.active;
-    el.style.setProperty('--pct', `${((endMinutes - 1) / 89) * 100}%`);
+    el.style.setProperty('--pct', `${((endMinutes - 1) / (MAX_DURATION_MIN - 1)) * 100}%`);
     const val = root.querySelector('.dur-val');
     if (val) val.innerHTML = `${endMinutes}<small>min</small>`;
     const ends = root.querySelector('.dur-end');
@@ -818,7 +917,10 @@ root.addEventListener('input', (e) => {
     const cta = root.querySelector('[data-act="confirm-end"]');
     if (cta) cta.textContent = `Confirm end · ${endMinutes} min`;
     const hint = root.querySelector('.hintline');
-    if (hint) hint.textContent = `We timed ${endMinutes} minutes. Drag only if that's not right.`;
+    // In the overrun case the number is her estimate, not something we timed.
+    if (hint && !endOverrun) {
+      hint.textContent = `We timed ${endMinutes} minutes. Drag only if that's not right.`;
+    }
     return;
   }
 

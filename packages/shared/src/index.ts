@@ -102,8 +102,12 @@ export const createFlashSchema = z.object({
 
 export type CreateFlashInput = z.infer<typeof createFlashSchema>;
 
+/**
+ * `endedAt: null` closes a flash without an end time — she slept through it and
+ * when it stopped is unknowable. Omitting the field means "ended just now".
+ */
 export const endFlashSchema = z.object({
-  endedAt: isoDateTimeSchema.optional(),
+  endedAt: isoDateTimeSchema.nullish(),
 });
 
 export const updateFlashSchema = z.object({

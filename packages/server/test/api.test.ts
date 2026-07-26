@@ -51,6 +51,15 @@ describe('ending a flash', () => {
     expect(res.json().durationMin).toBe(30);
   });
 
+  it('accepts a null end time and records no duration', async () => {
+    await post('/api/flashes', { startedAt: '2026-01-01T03:00:00Z' });
+    const res = await post('/api/flashes/end', { endedAt: null });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe('ended');
+    expect(res.json().endedAt).toBeNull();
+    expect(res.json().durationMin).toBeNull();
+  });
+
   it('returns 409 when nothing is running', async () => {
     const res = await post('/api/flashes/end', {});
     expect(res.statusCode).toBe(409);

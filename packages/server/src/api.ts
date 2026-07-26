@@ -16,6 +16,13 @@ import { toCsv, toJsonExport } from './export.js';
 const SESSION_COOKIE = 'tempra_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365; // a year: re-auth at 3am is hostile
 
+/**
+ * Two bedside presses closer together than this are treated as one. A physical
+ * button pressed in the dark gets double-tapped, and Hubitat retries failed
+ * posts; neither should become two flashes seconds apart.
+ */
+const DEBOUNCE_MS = 60_000;
+
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
   before: z.string().optional(),
@@ -238,16 +245,40 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
         return { ok: true, kind };
       }
 
-      // A press toggles: it ends a running flash, otherwise it starts one.
-      const running = repo.active();
-      const result: Flash | null = running ? repo.end(running.id) : repo.start({ source: 'homekit' });
+      /*
+       * A press always starts a flash. It is never a toggle.
+       *
+       * The button exists so that one tap in the dark starts the bed cooling and
+       * records that a flash began. The hope is that she falls back to sleep, so
+       * a second press to "stop the recording" is not something that will ever
+       * happen. Treating a press as an end would mean the most likely second
+       * press of the night — another flash — silently closed the first one
+       * instead of recording a new one.
+       *
+       * If a flash is already running it becomes superseded, with no ended_at
+       * and no duration: we know a new flash started, we do not know when the
+       * old one stopped, and we will not invent it.
+       */
+      const last = opts.db
+        .prepare(
+          "SELECT at FROM device_events WHERE device = 'bedside' AND kind = 'press' ORDER BY at DESC LIMIT 1",
+        )
+        .get() as { at: string } | undefined;
+
+      // A physical button pressed in the dark gets double-tapped, and Hubitat
+      // retries. Neither should show up as two flashes a few seconds apart.
+      if (last && Date.now() - Date.parse(last.at) < DEBOUNCE_MS) {
+        return { ok: true, kind, action: 'debounced', flash: repo.active() };
+      }
+
+      const flash = repo.start({ source: 'homekit' });
       opts.db
         .prepare(
           "INSERT INTO device_events (device, kind, at, flash_id) VALUES ('bedside', 'press', ?, ?)",
         )
-        .run(now, result?.id ?? null);
+        .run(now, flash.id);
 
-      return { ok: true, kind, action: running ? 'ended' : 'started', flash: result };
+      return { ok: true, kind, action: 'started', flash };
     },
   );
 

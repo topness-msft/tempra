@@ -178,7 +178,11 @@ export const projectState = (base: AppState): AppState => {
           ? (active?.id === op.flashId ? active : recent.find((f) => f.id === op.flashId)) ?? null
           : active;
         if (!target) break;
-        const endedAt = ((op.body as Record<string, unknown>)?.endedAt as string) ?? op.at;
+        const body = (op.body ?? {}) as Record<string, unknown>;
+        // An explicit null means "over, but when it stopped is unknowable". It
+        // must not fall back to the queue timestamp the way an omitted field
+        // does, or replaying the outbox would invent a duration.
+        const endedAt = 'endedAt' in body ? (body.endedAt as string | null) : op.at;
         retire({ ...target, pending: true }, 'ended', endedAt);
         if (active && target.id === active.id) active = null;
         break;

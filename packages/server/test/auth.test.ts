@@ -145,10 +145,56 @@ describe('bedside webhook with a secret configured', () => {
     expect(res.json().action).toBe('started');
   });
 
-  it('ends the running flash on the second press', async () => {
-    await app.inject({ method: 'POST', url: `/hooks/bedside/${BEDSIDE}`, payload: {} });
-    const res = await app.inject({ method: 'POST', url: `/hooks/bedside/${BEDSIDE}`, payload: {} });
-    expect(res.json().action).toBe('ended');
+  it('ignores a double-tap within the debounce window', async () => {
+    const first = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      payload: {},
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      payload: {},
+    });
+    expect(second.json().action).toBe('debounced');
+    expect(second.json().flash.id).toBe(first.json().flash.id);
+  });
+
+  /*
+   * The button starts the bed cooling; it is never a stop button. The likeliest
+   * second press of the night is another flash, and if that ended the first one
+   * instead of recording a new one the night's worst hours would vanish.
+   */
+  it('starts another flash on a later press, superseding the first', async () => {
+    const first = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      payload: {},
+    });
+    const firstId = first.json().flash.id;
+
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(Date.now() + 5 * 60_000));
+    const second = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      payload: {},
+    });
+    vi.useRealTimers();
+
+    expect(second.json().action).toBe('started');
+    expect(second.json().flash.id).not.toBe(firstId);
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/flashes',
+      headers: { authorization: `Bearer ${API_TOKEN}` },
+    });
+    const superseded = list.json().flashes.find((f: { id: string }) => f.id === firstId);
+    expect(superseded.status).toBe('superseded');
+    // Auto-closing must never invent an end time or a duration.
+    expect(superseded.endedAt).toBeNull();
+    expect(superseded.durationMin).toBeNull();
   });
 
   it('records a heartbeat without touching the flash log', async () => {
