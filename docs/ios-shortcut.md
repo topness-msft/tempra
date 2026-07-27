@@ -130,6 +130,19 @@ closed, phone still face-down.
 
 In Shortcuts, long-press **Log hot flash** → **Share** → **Add to Home Screen**.
 
+**Re-add this icon every time you rename or meaningfully edit the shortcut.**
+The icon is a web clip holding a reference captured when you created it, and
+renaming or restructuring the shortcut can invalidate that reference. When it
+breaks it does nothing at all — no error, no banner, no launch — while the same
+shortcut still runs perfectly from inside the Shortcuts app and from Siri. So
+the symptom points at the Home Screen, not at the shortcut, and testing the
+shortcut will keep telling you it's fine.
+
+This bites here in particular because the steps above have you rename the
+shortcut, and the confirmation actions in section 1 have you edit it afterwards.
+If the icon ever stops responding: delete it, then Share → Add to Home Screen
+again. Re-saving the shortcut or restarting the phone does not repair it.
+
 **Siri** — nothing to configure. Say *"Hey Siri, Log hot flash"*; the shortcut's
 name is the phrase.
 
@@ -323,6 +336,8 @@ holds severe — with everything else recorded that day untouched.
 | Red error, `400` `invalid_body` | Intensity isn't a whole number 1–10, or a body field was added as Text where it should be Number. |
 | Nothing appears in the app | Pull to refresh. Then check the URL is `https://` with no trailing space. |
 | Worked yesterday, not today | The API token was rotated. Update the header in both shortcuts. |
+| Home Screen icon does nothing, but the shortcut runs fine from the Shortcuts app or Siri | The icon's web clip reference broke, usually after a rename or edit. Delete the icon and Share → Add to Home Screen again. Re-saving the shortcut won't fix it. |
+| First run after a quiet spell takes about a second | The server suspends when idle and resumes on the first request. Expected — the app itself never waits on this, because it logs offline first. |
 | `429` | Rate limited. You are fine; wait a minute. |
 
 **No signal at 3am?** Log it in the **app** instead. The PWA queues writes offline
