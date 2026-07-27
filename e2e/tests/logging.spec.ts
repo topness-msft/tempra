@@ -28,7 +28,9 @@ test('logging a flash surfaces it as the active ribbon', async ({ page }) => {
   await expect(ribbon).toBeVisible();
   // The elapsed clock is the proof it is genuinely running, not just recorded.
   await expect(ribbon).toContainText(/\d+:\d\d/);
-  await expect(page.locator('[data-act="open-end"]')).toBeVisible();
+  // Ending lives on the main button, not in the ribbon: one way out, not two.
+  await expect(page.locator('[data-act="end-flash"]')).toBeVisible();
+  await expect(ribbon.locator('button')).toHaveCount(0);
 });
 
 test('intensity and symptoms are carried into the saved flash', async ({ page }) => {
@@ -52,7 +54,7 @@ test('ending a flash prefills the measured duration and records it', async ({ pa
   await page.locator('[data-act="begin"]').click();
   await expect(page.locator('.ribbon')).toBeVisible();
 
-  await page.locator('[data-act="open-end"]').click();
+  await page.locator('[data-act="end-flash"]').click();
 
   // The duration is measured, not guessed: the field arrives already filled.
   const confirm = page.locator('[data-act="confirm-end"]');
@@ -71,7 +73,7 @@ test('ending a flash prefills the measured duration and records it', async ({ pa
 
 test('backing out of the end screen leaves the flash running', async ({ page }) => {
   await page.locator('[data-act="begin"]').click();
-  await page.locator('[data-act="open-end"]').click();
+  await page.locator('[data-act="end-flash"]').click();
   await page.locator('[data-act="cancel-end"]').last().click();
 
   // Staying open is the default state, not an action.
@@ -123,7 +125,7 @@ test('backing out of composing a second flash returns to editing the running one
 
   // The controls go back to showing the running flash, not blank defaults.
   await expect(page.locator('.gauge .val')).toContainText('7');
-  await expect(page.locator('[data-act="save"]')).toBeVisible();
+  await expect(page.locator('[data-act="end-flash"]')).toBeVisible();
 
   const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
   expect(flashes).toHaveLength(1);
@@ -139,7 +141,7 @@ test('a flash that ran past an hour is closed without a fabricated duration', as
   expect(res.status()).toBe(201);
 
   await page.reload();
-  await page.locator('[data-act="open-end"]').click();
+  await page.locator('[data-act="end-flash"]').click();
 
   const confirm = page.locator('[data-act="confirm-end"]');
   await expect(confirm).toHaveText('Close without a duration');
@@ -162,7 +164,7 @@ test('an overrun flash still accepts a duration she remembers, capped at an hour
   await page.request.post('/api/flashes', { data: { startedAt, source: 'homekit' } });
 
   await page.reload();
-  await page.locator('[data-act="open-end"]').click();
+  await page.locator('[data-act="end-flash"]').click();
   await page.locator('[data-act="end-manual"]').click();
 
   const slider = page.locator('.slider.dur');
@@ -180,9 +182,10 @@ test('a flash started from a Shortcut supersedes the running one without inventi
   await page.locator('[data-act="begin"]').click();
   await expect(page.locator('.ribbon')).toBeVisible();
 
-  // With a flash running the CTA edits it; starting another is a deliberate,
-  // separate action. Both paths supersede, and neither invents a duration.
-  await expect(page.locator('[data-act="save"]')).toBeVisible();
+  // With a flash running the main button ends it; starting another is a
+  // deliberate, separate action. Both paths supersede, and neither invents a
+  // duration.
+  await expect(page.locator('[data-act="end-flash"]')).toBeVisible();
   await expect(page.locator('[data-act="compose-new"]')).toBeVisible();
 
   const res = await page.request.post('/api/flashes', {
@@ -216,13 +219,59 @@ test('the log screen edits the running flash instead of overwriting it with defa
   await expect(page.locator('.gauge .val')).toContainText('9');
   await expect(page.locator('[data-sym="chills"]')).toHaveAttribute('aria-pressed', 'true');
 
-  // Saving without touching anything must not invent a new intensity.
-  await page.locator('[data-act="save"]').click();
-  await expect(page.locator('.ribbon')).toContainText('Intensity 9');
-
   const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
   expect(flashes[0].intensity).toBe(9);
   expect(flashes[0].symptoms).toEqual(['chills']);
+});
+
+/*
+ * There is no save button while a flash is running. A symptom noticed at 3am is
+ * recorded the moment it is tapped, so putting the phone down loses nothing —
+ * which is the only assumption safe to make about the middle of the night.
+ */
+test('details tapped during a running flash are recorded without a save', async ({ page }) => {
+  await page.locator('[data-act="begin"]').click();
+  await expect(page.locator('.ribbon')).toBeVisible();
+
+  await page.locator('[data-sym="sweating"]').click();
+  await expect(page.locator('[data-sym="sweating"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(async () => (await (await page.request.get('/api/flashes')).json()).flashes[0].symptoms)
+    .toEqual(['sweating']);
+
+  // The intensity follows on release rather than per pixel of the drag.
+  await page.locator('.slider').fill('8');
+  await expect
+    .poll(async () => (await (await page.request.get('/api/flashes')).json()).flashes[0].intensity)
+    .toBe(8);
+
+  // The note follows on blur, the same rule the day check-in uses.
+  await page.locator('#note').fill('Woke up soaked');
+  await page.locator('#note').blur();
+  await expect
+    .poll(async () => (await (await page.request.get('/api/flashes')).json()).flashes[0].note)
+    .toBe('Woke up soaked');
+});
+
+/*
+ * The closing note is offered as something to add. Now that the note kept during
+ * the flash saves itself, there is nearly always one there to destroy.
+ */
+test('a closing note is added to the note kept during the flash, not swapped for it', async ({
+  page,
+}) => {
+  await page.locator('[data-act="begin"]').click();
+  await page.locator('#note').fill('Woke up soaked');
+  await page.locator('#note').blur();
+
+  await page.locator('[data-act="end-flash"]').click();
+  await page.locator('#endnote').fill('Passed after opening a window');
+  await page.locator('[data-act="confirm-end"]').click();
+
+  await expect(page.locator('.ribbon')).toHaveCount(0);
+  const note = (await (await page.request.get('/api/flashes')).json()).flashes[0].note;
+  expect(note).toContain('Woke up soaked');
+  expect(note).toContain('Passed after opening a window');
 });
 
 test('history shows the day summary and the entry', async ({ page }) => {
@@ -255,4 +304,29 @@ test('export offers both formats and the CSV downloads with real rows', async ({
   expect(lines[0]).toContain('started_local');
   expect(lines[0]).toContain('started_utc');
   expect(lines[1]).toContain('active');
+});
+
+test('tapping a symptom mid-flash does not throw the screen back to the top', async ({ page }) => {
+  await page.locator('[data-act="begin"]').click();
+  await expect(page.locator('.ribbon')).toBeVisible();
+  // Measure only once the sync bar has cleared: it sits outside the scroller,
+  // so it changes how far the scroller can travel and would race the check.
+  await expect(page.locator('.sync-bar')).toHaveCount(0);
+
+  const scroller = page.locator('.scroll');
+  const chills = page.locator('[data-sym="chills"]');
+  await scroller.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  // Clicking scrolls the target into view first, so settle that before reading
+  // the baseline — otherwise the test measures its own scrolling, not the app's.
+  await chills.scrollIntoViewIfNeeded();
+  const before = await scroller.evaluate((el) => el.scrollTop);
+  expect(
+    before,
+    'the log screen must actually be scrollable for this to mean anything',
+  ).toBeGreaterThan(40);
+
+  await chills.click();
+  await expect(chills).toHaveAttribute('aria-pressed', 'true');
+
+  await expect.poll(async () => scroller.evaluate((el) => el.scrollTop)).toBe(before);
 });

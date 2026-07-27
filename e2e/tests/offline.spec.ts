@@ -53,7 +53,7 @@ test('ending a flash offline still records the duration once reconnected', async
   await expect(page.locator('.ribbon')).toBeVisible();
 
   await context.setOffline(true);
-  await page.locator('[data-act="open-end"]').click();
+  await page.locator('[data-act="end-flash"]').click();
   await page.locator('.slider.dur').fill('9');
   await page.locator('[data-act="confirm-end"]').click();
 
@@ -75,7 +75,7 @@ test('several flashes queued offline all arrive, in order', async ({ page, conte
 
   await page.locator('[data-act="begin"]').click();
   await expect(page.locator('.ribbon')).toBeVisible();
-  await page.locator('[data-act="open-end"]').click();
+  await page.locator('[data-act="end-flash"]').click();
   await page.locator('[data-act="confirm-end"]').click();
   await expect(page.locator('.ribbon')).toHaveCount(0);
 

@@ -127,17 +127,11 @@ body{
   flex:none;margin-bottom:16px;border-radius:22px;padding:16px 16px 16px 18px;
   background:linear-gradient(122deg,var(--berry) 0%,#D4627F 60%,#E08A54 120%);
   color:#fff;box-shadow:0 18px 36px -18px rgba(179,63,102,.9);
-  display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
+  display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;
 }
 .ribbon .pulse{width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.8);animation:ping 2.2s ease-out infinite}
 .ribbon .t{font-family:var(--mono);font-size:29px;font-weight:500;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;display:block}
 .ribbon .s{display:block;font-size:15px;font-weight:600;margin-top:7px;opacity:.95}
-.ribbon .end{
-  min-height:48px;padding:0 20px;border:0;border-radius:999px;cursor:pointer;
-  background:#fff;color:var(--berry);font-family:var(--sans);font-weight:700;font-size:16px;
-  transition:transform .3s cubic-bezier(.2,.8,.2,1);
-}
-.ribbon .end:hover{transform:translateY(-2px)}
 @keyframes ping{0%{box-shadow:0 0 0 0 rgba(255,255,255,.75)}70%{box-shadow:0 0 0 14px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
 
 .empty-ribbon{
@@ -567,7 +561,6 @@ body{
             <div class="ribbon">
               <span class="pulse"></span>
               <span><b class="t ribbon-clock">07:12</b><span class="s">Active since 9:34 · Intensity 4</span></span>
-              <button class="end">End</button>
             </div>
 
             <div class="hd">

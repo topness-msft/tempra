@@ -143,8 +143,8 @@ const blankDraft = (): Draft => ({
 /**
  * While a flash is running the log screen edits *that* flash, so the controls
  * must start from what was actually recorded. Leaving them at the blank
- * defaults meant tapping "Save these details" silently rewrote the intensity to
- * 4 — replacing something the user observed with something nobody chose.
+ * defaults meant the first save silently rewrote the intensity to 4 —
+ * replacing something the user observed with something nobody chose.
  */
 const draftFrom = (f: PendingFlash): Draft => ({
   intensity: f.intensity ?? 4,
@@ -384,7 +384,6 @@ const logView = (): string => {
            <span class="s">Active since ${clock(active.startedAt)}${active.intensity ? ` · Intensity ${active.intensity}` : ''}${
              active.pending ? ' · Saved on this phone' : ''
            }</span></span>
-         <button class="end" data-act="open-end">End</button>
        </div>`
     : `<div class="empty-ribbon"><p>Nothing running right now</p></div>`;
 
@@ -425,8 +424,9 @@ const logView = (): string => {
       </div>
 
       <div class="cta">
-        <button class="btn btn-primary" data-act="${editing ? 'save' : 'begin'}">
-          ${editing ? 'Save these details' : `Begin flash · ${clock(new Date().toISOString())}`}
+        ${editing ? '<p class="savedline"><b>Saved</b> as you tap · end it when it passes</p>' : ''}
+        <button class="btn btn-primary" data-act="${editing ? 'end-flash' : 'begin'}">
+          ${editing ? 'End flash' : `Begin flash · ${clock(new Date().toISOString())}`}
         </button>
         ${
           editing
@@ -874,6 +874,9 @@ const paintSketches = (): void => {
   if (slot && drafted) requestAnimationFrame(() => renderSketch(slot, drafted, 2));
 };
 
+/** Which screen the last render drew, so scroll is only held across the same one. */
+let lastScreenKey = '';
+
 const render = (): void => {
   // Rebuilding the list mid-gesture would tear the node out from under the
   // finger holding it.
@@ -896,7 +899,33 @@ const render = (): void => {
             ? exportView()
             : logView();
 
+  /*
+   * Rendering replaces the DOM wholesale, so anything that saves as you tap
+   * would otherwise throw you back to the top of the page mid-list. Hold the
+   * scroll position across a re-render of the *same* screen; arriving somewhere
+   * new should still start at the top.
+   */
+  const key = `${ending && state.active ? 'end' : tab}:${composingNew ? 'new' : 'edit'}`;
+  const held =
+    key === lastScreenKey ? (root.querySelector<HTMLElement>('.scroll')?.scrollTop ?? 0) : 0;
+  lastScreenKey = key;
+
   root.innerHTML = `<div class="screen">${screen}${viewing ? viewerHtml(viewing) : ''}</div>`;
+
+  if (held) {
+    const scroller = root.querySelector<HTMLElement>('.scroll');
+    if (scroller) {
+      scroller.scrollTop = held;
+      // The panels have not finished laying out on this tick, so that first
+      // assignment is clamped against a page still shorter than it will be.
+      // Repeating it next frame is what actually holds the position. If a newer
+      // render has replaced the DOM by then this node is detached and the write
+      // goes nowhere, which is the behaviour we want.
+      requestAnimationFrame(() => {
+        scroller.scrollTop = held;
+      });
+    }
+  }
 
   paintSketches();
   wireDrawing();
@@ -948,7 +977,8 @@ const wireDrawing = (): void => {
   over.querySelector('.done')?.addEventListener('click', () => {
     draft.sketch = pad?.value() ?? null;
     over.classList.remove('open');
-    render();
+    if (state.active && !composingNew) void persistFlash();
+    else render();
   });
 };
 
@@ -1063,17 +1093,60 @@ const beginFlash = async (): Promise<void> => {
   await refresh();
 };
 
-const saveDetails = async (): Promise<void> => {
+/**
+ * Write the running flash. Called on every tap and on every field leaving
+ * focus, the same way the day check-in saves, so there is no submit button to
+ * forget and no window where a choice is on screen but not recorded.
+ *
+ * Silent by design: a toast per symptom tap would be noise, and the pending dot
+ * in the ribbon already says when something is still queued.
+ */
+const persistFlash = async (): Promise<void> => {
   const active = state.active;
-  if (!active) return;
-  const ok = await updateFlash(active.id, {
+  // Nothing to write to before "Begin", and while a second flash is being
+  // composed the controls describe one that does not exist yet.
+  if (!active || composingNew) return;
+  await updateFlash(active.id, {
     intensity: draft.intensity,
     symptoms: [...draft.symptoms],
     note: draft.note || null,
     sketch: draft.sketch,
   });
-  toast(ok ? 'Saved' : 'Saved — will sync when back online');
+  // Refetch like every other mutation: once accepted the write leaves the
+  // outbox, so without this the projection would stop carrying it.
   await refresh();
+};
+
+/** Set up and show the end sheet for the running flash. */
+const openEndSheet = (): void => {
+  const active = state.active;
+  if (!active) return;
+  const measured = Math.round((Date.now() - Date.parse(active.startedAt)) / 60_000);
+  endOverrun = measured > MAX_DURATION_MIN;
+  endManual = false;
+  // On an overrun the timer is not evidence, so the slider starts from a
+  // neutral half hour instead of a number we know to be wrong.
+  endMinutes = endOverrun ? 30 : Math.max(1, Math.min(MAX_DURATION_MIN, measured));
+  ending = true;
+  render();
+};
+
+/**
+ * The running flash has one button, and it ends. Everything above it has been
+ * saving as she goes; the one thing that can outrun that is a note still being
+ * typed, because a tap straight from the keyboard to this button can land
+ * before the field reports it changed. Flushing it here is the difference
+ * between "the note saves itself" being true and being nearly true.
+ */
+const endFlashFlow = async (): Promise<void> => {
+  const active = state.active;
+  if (!active) return;
+  const note = root.querySelector<HTMLTextAreaElement>('#note');
+  if (note && note.value !== (active.note ?? '')) {
+    draft.note = note.value;
+    await persistFlash();
+  }
+  openEndSheet();
 };
 
 const confirmEnd = async (): Promise<void> => {
@@ -1085,7 +1158,14 @@ const confirmEnd = async (): Promise<void> => {
   const endedAt = withDuration
     ? new Date(Date.parse(active.startedAt) + endMinutes * 60_000).toISOString()
     : null;
-  if (endNote.trim()) await updateFlash(active.id, { note: endNote.trim() });
+  if (endNote.trim()) {
+    // The closing note is offered as something to *add*, and now that the
+    // details note saves itself there will usually be one there to lose.
+    // Replacing it would quietly delete what she wrote during the flash.
+    const existing = (active.note ?? '').trim();
+    const merged = existing ? `${existing}\n\n${endNote.trim()}` : endNote.trim();
+    await updateFlash(active.id, { note: merged });
+  }
   const ok = await endFlash(active.id, { endedAt });
   ending = false;
   endNote = '';
@@ -1146,6 +1226,11 @@ window.addEventListener('pagehide', () => {
   if (note && note.value !== (dayLogFor(dayDate)?.note ?? '')) {
     dayDraft.note = note.value;
     void persistDay();
+  }
+  const flashNote = root.querySelector<HTMLTextAreaElement>('#note');
+  if (state.active && !composingNew && flashNote && flashNote.value !== (state.active.note ?? '')) {
+    draft.note = flashNote.value;
+    void persistFlash();
   }
   for (const [id, timer] of deleting) {
     window.clearTimeout(timer);
@@ -1336,7 +1421,10 @@ root.addEventListener('click', (e) => {
     const s = btn.dataset.sym as Symptom;
     if (draft.symptoms.has(s)) draft.symptoms.delete(s);
     else draft.symptoms.add(s);
-    render();
+    // While a flash is running each tap is the record, not a draft of one.
+    // persistFlash re-renders; before "Begin" there is nothing to write to.
+    if (state.active && !composingNew) void persistFlash();
+    else render();
     return;
   }
 
@@ -1366,19 +1454,6 @@ root.addEventListener('click', (e) => {
         render();
       });
       break;
-    case 'open-end': {
-      const active = state.active;
-      if (!active) break;
-      const measured = Math.round((Date.now() - Date.parse(active.startedAt)) / 60_000);
-      endOverrun = measured > MAX_DURATION_MIN;
-      endManual = false;
-      // On an overrun the timer is not evidence, so the slider starts from a
-      // neutral half hour instead of a number we know to be wrong.
-      endMinutes = endOverrun ? 30 : Math.max(1, Math.min(MAX_DURATION_MIN, measured));
-      ending = true;
-      render();
-      break;
-    }
     case 'end-manual':
       endManual = true;
       render();
@@ -1404,8 +1479,8 @@ root.addEventListener('click', (e) => {
       syncDraftToActive();
       render();
       break;
-    case 'save':
-      void saveDetails();
+    case 'end-flash':
+      void endFlashFlow();
       break;
     case 'close-viewer':
       viewing = null;
@@ -1481,10 +1556,28 @@ root.addEventListener('input', (e) => {
  * The day note saves when she stops typing rather than on every keystroke — a
  * write per character would fill the outbox for no gain — and again on the way
  * out, so a note typed offline and then backgrounded is never the one thing
- * that did not survive.
+ * that did not survive. The flash note and intensity ride the same rule: a
+ * range input reports `change` only once she lets go of it.
  */
 root.addEventListener('change', (e) => {
-  if ((e.target as HTMLElement).id === 'daynote') void persistDay();
+  const el = e.target as HTMLElement;
+  if (el.id === 'daynote') {
+    void persistDay();
+    return;
+  }
+  if (!state.active || composingNew) return;
+  if (el.id === 'note') {
+    void persistFlash();
+    return;
+  }
+  if (el.classList.contains('slider') && !el.classList.contains('dur')) {
+    // persistFlash re-renders, which would drop the slider out from under
+    // someone stepping it with arrow keys. Put focus back where it was.
+    const refocus = document.activeElement === el;
+    void persistFlash().then(() => {
+      if (refocus) root.querySelector<HTMLInputElement>('.slider:not(.dur)')?.focus();
+    });
+  }
 });
 
 root.addEventListener('keydown', (e) => {
