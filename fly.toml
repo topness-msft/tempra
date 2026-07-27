@@ -22,12 +22,22 @@ primary_region = "iad"
 [http_service]
   internal_port = 8080
   force_https = true
-  # This app must answer at 3am from a phone with one bar. A cold start behind
-  # a suspended machine is the one failure the user would actually feel, so the
-  # machine stays up rather than trading availability for a few cents.
-  auto_stop_machines = false
+  # This app must answer at 3am from a phone with one bar. That argued for
+  # keeping a machine up, but the argument was against a *cold start* — a boot
+  # takes seconds. Suspend restores a memory snapshot in a few hundred ms, which
+  # nobody notices, so the machine sleeps when idle and wakes on the first
+  # request. Compute is only billed while awake; the volume is billed either way.
+  #
+  # The web app never waits on this: it is offline-first, so a tap at 3am lands
+  # in the local outbox and syncs afterwards. The paths that do wait are the ones
+  # with no outbox — the iOS Shortcut and the bedside button — and a few hundred
+  # ms is invisible to both.
+  #
+  # min_machines_running must be 0. With one machine, leaving it at 1 makes that
+  # machine the minimum, and it would never suspend no matter what is set above.
+  auto_stop_machines = "suspend"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
   [http_service.concurrency]
     type = "requests"
