@@ -287,6 +287,93 @@ test('history shows the day summary and the entry', async ({ page }) => {
   await expect(page.locator('.scroll')).toContainText(/chills/i);
 });
 
+/*
+ * A duration written at 3am is a guess made half asleep, and the flash she
+ * sleeps through has no duration at all until she is awake to say so. Tapping
+ * the row reopens the same card it was closed with, so the record can be
+ * corrected later rather than being wrong forever.
+ */
+test('tapping a history row reopens the end card and corrects the duration', async ({ page }) => {
+  await page.locator('[data-act="begin"]').click();
+  await page.locator('[data-act="end-flash"]').click();
+  await page.locator('.slider.dur').fill('10');
+  await page.locator('[data-act="confirm-end"]').click();
+  await expect(page.locator('.ribbon')).toHaveCount(0);
+
+  await page.locator('[data-tab="history"]').click();
+  await expect(page.locator('.entry').first()).toContainText('10 min');
+
+  await page.locator('.entry').first().click();
+
+  // Editing, not ending: nothing is running, and the card says so.
+  await expect(page.locator('.sheetbar')).toContainText('Editing this flash');
+  // It arrives showing what is on the record rather than a fresh default.
+  await expect(page.locator('.gauge .val')).toContainText('10');
+
+  const confirm = page.locator('[data-act="confirm-end"]');
+  await expect(confirm).toContainText(/Save · \d+ min/);
+  await page.locator('.slider.dur').fill('35');
+  await confirm.click();
+
+  await expect(page.locator('.entry').first()).toContainText('35 min');
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes[0].status).toBe('ended');
+  expect(flashes[0].durationMin).toBe(35);
+  // The end time is derived from the duration, so the two can never disagree.
+  const span = (Date.parse(flashes[0].endedAt) - Date.parse(flashes[0].startedAt)) / 60_000;
+  expect(Math.round(span)).toBe(35);
+});
+
+test('a flash slept through can be given a length later', async ({ page }) => {
+  // The commonest flash of all: started hours ago, nobody awake to close it.
+  await page.request.post('/api/flashes', {
+    data: { startedAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString() },
+  });
+  await page.reload();
+
+  await page.locator('[data-act="end-flash"]').click();
+  // Past an hour the timer is not evidence, so the card refuses to guess.
+  await expect(page.locator('[data-act="confirm-end"]')).toContainText('Close without a duration');
+  await page.locator('[data-act="confirm-end"]').click();
+
+  await page.locator('[data-tab="history"]').click();
+  await expect(page.locator('.entry').first()).toContainText('No end');
+
+  await page.locator('.entry').first().click();
+  await expect(page.locator('.sheetbar')).toContainText('Editing this flash');
+  await expect(page.getByText('no length against it')).toBeVisible();
+
+  await page.locator('[data-act="end-manual"]').click();
+  await page.locator('.slider.dur').fill('22');
+  await page.locator('[data-act="confirm-end"]').click();
+
+  await expect(page.locator('.entry').first()).toContainText('22 min');
+});
+
+/*
+ * The closing note is the one thing here that is edited rather than appended
+ * to — otherwise there is no way to fix something written half asleep.
+ */
+test('editing a finished flash replaces its note in place', async ({ page }) => {
+  await page.locator('[data-act="begin"]').click();
+  // No blur: tapping straight from the keyboard to End is the real gesture, and
+  // the note must survive it.
+  await page.locator('#note').fill('woke up soaked');
+  await page.locator('[data-act="end-flash"]').click();
+  await page.locator('[data-act="confirm-end"]').click();
+
+  await page.locator('[data-tab="history"]').click();
+  await page.locator('.entry').first().click();
+
+  const note = page.locator('#endnote');
+  await expect(note).toHaveValue('woke up soaked');
+  await note.fill('woke up soaked — third night running');
+  await page.locator('[data-act="confirm-end"]').click();
+
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes[0].note).toBe('woke up soaked — third night running');
+});
+
 test('export offers both formats and the CSV downloads with real rows', async ({ page }) => {
   await page.locator('[data-act="begin"]').click();
   await page.locator('[data-tab="export"]').click();

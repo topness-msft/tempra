@@ -191,6 +191,7 @@ export class FlashRepo {
       symptoms?: readonly Symptom[];
       note?: string | null;
       sketch?: Sketch | null;
+      endedAt?: string | null;
     },
   ): Flash | null {
     const existing = this.get(id);
@@ -206,6 +207,26 @@ export class FlashRepo {
       if (patch.note !== undefined) {
         sets.push('note = ?');
         args.push(patch.note);
+      }
+      /*
+       * Correcting the end time of a flash already in the record. Duration is
+       * derived here rather than accepted from the client, so the two can never
+       * disagree. Supplying an end time marks the flash ended, because that is
+       * what an end time says — a flash auto-closed as `superseded` becomes
+       * `ended` once she tells us how long it actually ran, since superseded
+       * records that the app stopped watching and that is no longer all we know.
+       * Clearing one leaves the status alone: withdrawing a guess is not a claim
+       * about how the flash closed, and rewriting `superseded` to `ended` there
+       * would throw away the one thing that record does say.
+       */
+      if (patch.endedAt !== undefined) {
+        const row = this.db.prepare('SELECT started_at FROM flashes WHERE id = ?').get(id) as {
+          started_at: string;
+        };
+        const endedUtc = patch.endedAt === null ? null : toUtcIso(patch.endedAt);
+        sets.push('ended_at = ?', 'duration_min = ?');
+        args.push(endedUtc, endedUtc === null ? null : durationMinutes(row.started_at, endedUtc));
+        if (endedUtc !== null) sets.push("status = 'ended'");
       }
       sets.push('updated_at = ?');
       args.push(new Date().toISOString());

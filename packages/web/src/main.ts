@@ -178,6 +178,12 @@ let endMinutes = 0;
 let endOverrun = false;
 /** She overrode the above and wants to supply a duration from memory. */
 let endManual = false;
+/**
+ * The flash the end sheet is working on. Null while the sheet is closed. It is
+ * held as an id rather than a copy so a refresh landing mid-edit cannot leave
+ * the sheet describing a stale version of the record.
+ */
+let endTarget: string | null = null;
 let endNote = '';
 let authed = true;
 let online = navigator.onLine;
@@ -459,18 +465,38 @@ const roughSpan = (minutes: number): string => {
   return `about ${hours} hours`;
 };
 
+/** The flash the end sheet is editing, running or long finished. */
+const endSubject = (): PendingFlash | null => {
+  if (!endTarget) return null;
+  if (state.active?.id === endTarget) return state.active;
+  return state.recent.find((f) => f.id === endTarget) ?? null;
+};
+
 const endView = (): string => {
-  const active = state.active;
-  if (!active) return logView();
+  const subject = endSubject();
+  if (!subject) return logView();
+  // Ending a flash and correcting one already in the record are the same
+  // question asked at different times, so they are the same card. What differs
+  // is that nothing here is running, so nothing is being measured now.
+  const live = subject.status === 'active';
 
   // When it overran, a duration is opt-in rather than the default.
   const askDuration = !endOverrun || endManual;
   const pct = ((endMinutes - 1) / (MAX_DURATION_MIN - 1)) * 100;
-  const endsAt = new Date(Date.parse(active.startedAt) + endMinutes * 60_000).toISOString();
+  const endsAt = new Date(Date.parse(subject.startedAt) + endMinutes * 60_000).toISOString();
+
+  const durationLabel = live ? (endOverrun ? 'your estimate' : 'measured') : 'as you remember it';
+  const durationHint = live
+    ? endOverrun
+      ? 'Only you know this one — the timer ran too long to trust.'
+      : `We timed ${endMinutes} minutes. Drag only if that's not right.`
+    : subject.durationMin !== null
+      ? `Recorded as ${subject.durationMin} minutes.`
+      : 'This one was never given a length.';
 
   const durationPanel = askDuration
     ? `<div class="panel warm">
-         <p class="lab">Duration <u>${endOverrun ? 'your estimate' : 'measured'}</u></p>
+         <p class="lab">Duration <u>${durationLabel}</u></p>
          <div class="gauge">
            <span class="val dur-val">${endMinutes}<small>min</small></span>
            <span class="word dur-end">ends ${clock(endsAt)}</span>
@@ -478,18 +504,25 @@ const endView = (): string => {
          <input class="slider dur" type="range" min="1" max="${MAX_DURATION_MIN}" step="1" value="${endMinutes}"
                 aria-label="Duration in minutes, 1 to ${MAX_DURATION_MIN}" style="--pct:${pct}%">
          <div class="key"><span>1 min</span><span>${MAX_DURATION_MIN} min</span></div>
-         <p class="hintline">${
-           endOverrun
-             ? 'Only you know this one — the timer ran too long to trust.'
-             : `We timed ${endMinutes} minutes. Drag only if that's not right.`
-         }</p>
+         <p class="hintline">${durationHint}</p>
        </div>`
-    : `<div class="panel warm">
+    : live
+      ? `<div class="panel warm">
          <p class="lab">Duration <u>not recorded</u></p>
          <p class="bodytext">It has been running for ${roughSpan(
-           Math.round((Date.now() - Date.parse(active.startedAt)) / 60_000),
+           Math.round((Date.now() - Date.parse(subject.startedAt)) / 60_000),
          )} — long enough that you were probably asleep. We'll record that the flash
            happened and leave the end time blank rather than guess it.</p>
+         <button class="btn btn-quiet" data-act="end-manual">I know roughly how long it was</button>
+       </div>`
+      : `<div class="panel warm">
+         <p class="lab">Duration <u>not recorded</u></p>
+         <p class="bodytext">This flash has no length against it${
+           subject.status === 'superseded'
+             ? ' — another one started before it was closed'
+             : ', because it ran too long to time'
+         }. That is a fair record of a flash you slept through, and worth leaving
+           alone unless you actually remember.</p>
          <button class="btn btn-quiet" data-act="end-manual">I know roughly how long it was</button>
        </div>`;
 
@@ -497,26 +530,38 @@ const endView = (): string => {
     <div class="stage">
       <div class="sheetbar">
         <button class="x" aria-label="Close" data-act="cancel-end">✕</button>
-        <span>Ending this flash</span>
+        <span>${live ? 'Ending this flash' : 'Editing this flash'}</span>
       </div>
       <div class="scroll">
         <div class="hd">
-          <p class="kicker">Started ${clock(active.startedAt)}</p>
+          <p class="kicker">${live ? '' : `${dayFmt.format(new Date(subject.startedAt))} · `}Started ${clock(subject.startedAt)}</p>
           <h2 class="h1">${
-            endOverrun && !endManual ? 'Close this <em>one out</em>' : 'How long did <em>it last?</em>'
+            askDuration
+              ? 'How long did <em>it last?</em>'
+              : live
+                ? 'Close this <em>one out</em>'
+                : 'Leave it <em>as it is?</em>'
           }</h2>
         </div>
         ${durationPanel}
         <div class="panel">
-          <p class="lab">Add a closing note</p>
+          <p class="lab">${live ? 'Add a closing note' : 'Note'}</p>
           <textarea class="field" id="endnote" rows="2" placeholder="Passed after opening a window…">${esc(endNote)}</textarea>
         </div>
       </div>
       <div class="cta">
         <button class="btn btn-primary" data-act="confirm-end">${
-          askDuration ? `Confirm end · ${endMinutes} min` : 'Close without a duration'
+          live
+            ? askDuration
+              ? `Confirm end · ${endMinutes} min`
+              : 'Close without a duration'
+            : askDuration
+              ? `Save · ${endMinutes} min`
+              : 'Save with no duration'
         }</button>
-        <button class="btn btn-quiet" style="margin-top:6px" data-act="cancel-end">Cancel — leave it running</button>
+        <button class="btn btn-quiet" style="margin-top:6px" data-act="cancel-end">${
+          live ? 'Cancel — leave it running' : 'Cancel — change nothing'
+        }</button>
       </div>
       ${tabsHtml()}
     </div>
@@ -638,7 +683,8 @@ const entryHtml = (f: PendingFlash): string => {
 
   return `
     <div class="swipe${swipeOpenId === f.id ? ' open' : ''}" data-swipe="${f.id}">
-      <div class="entry" data-entry="${f.id}">
+      <div class="entry" data-entry="${f.id}" role="button" tabindex="0"
+        aria-label="Edit the flash at ${esc(clock(f.startedAt))}">
         <span class="stem${calm}"></span>
         <div>
           <p class="when">${when}${
@@ -889,7 +935,7 @@ const render = (): void => {
   }
 
   const screen =
-    ending && state.active
+    ending && endSubject()
       ? endView()
       : tab === 'history'
         ? historyView()
@@ -905,7 +951,7 @@ const render = (): void => {
    * scroll position across a re-render of the *same* screen; arriving somewhere
    * new should still start at the top.
    */
-  const key = `${ending && state.active ? 'end' : tab}:${composingNew ? 'new' : 'edit'}`;
+  const key = `${ending && endSubject() ? 'end' : tab}:${composingNew ? 'new' : 'edit'}`;
   const held =
     key === lastScreenKey ? (root.querySelector<HTMLElement>('.scroll')?.scrollTop ?? 0) : 0;
   lastScreenKey = key;
@@ -1054,11 +1100,21 @@ const persistDay = async (): Promise<void> => {
   await refresh();
 };
 
+let refreshSeq = 0;
+
 const refresh = async (): Promise<void> => {
+  // Two refreshes can be in flight at once — a save-as-you-type write and the
+  // periodic sync — and the network does not promise to answer them in order.
+  // An older reply landing last would put back the value she has just changed,
+  // so a reply is only allowed to be applied if nothing newer already has been.
+  const seq = (refreshSeq += 1);
   try {
-    serverState = await fetchState();
+    const next = await fetchState();
+    if (seq !== refreshSeq) return;
+    serverState = next;
     authed = true;
   } catch (err) {
+    if (seq !== refreshSeq) return;
     // Being offline is not an error here: the cached state is still the truth
     // as far as this device knows.
     if (err instanceof Unauthorized) authed = false;
@@ -1117,16 +1173,38 @@ const persistFlash = async (): Promise<void> => {
   await refresh();
 };
 
-/** Set up and show the end sheet for the running flash. */
-const openEndSheet = (): void => {
-  const active = state.active;
-  if (!active) return;
-  const measured = Math.round((Date.now() - Date.parse(active.startedAt)) / 60_000);
-  endOverrun = measured > MAX_DURATION_MIN;
+/**
+ * Set up and show the end sheet. With no id it takes the running flash, which
+ * is the "End flash" button; with one it opens a flash already in the record so
+ * a duration can be corrected or supplied late.
+ */
+const openEndSheet = (id?: string): void => {
+  const subject = id
+    ? (state.active?.id === id ? state.active : state.recent.find((f) => f.id === id)) ?? null
+    : state.active;
+  if (!subject) return;
+  endTarget = subject.id;
   endManual = false;
-  // On an overrun the timer is not evidence, so the slider starts from a
-  // neutral half hour instead of a number we know to be wrong.
-  endMinutes = endOverrun ? 30 : Math.max(1, Math.min(MAX_DURATION_MIN, measured));
+
+  if (subject.status === 'active') {
+    const measured = Math.round((Date.now() - Date.parse(subject.startedAt)) / 60_000);
+    endOverrun = measured > MAX_DURATION_MIN;
+    // On an overrun the timer is not evidence, so the slider starts from a
+    // neutral half hour instead of a number we know to be wrong.
+    endMinutes = endOverrun ? 30 : Math.max(1, Math.min(MAX_DURATION_MIN, measured));
+    // Closing a flash adds to whatever she wrote while it was happening, so the
+    // box starts empty and says "add".
+    endNote = '';
+  } else {
+    // Nothing is being measured, so there is no overrun to reason about: either
+    // a duration is on the record, or she is being asked whether she remembers
+    // one. Editing shows the note as it stands rather than appending to it —
+    // this is the only way to correct something written at 3am.
+    endOverrun = subject.durationMin === null;
+    endMinutes = Math.max(1, Math.min(MAX_DURATION_MIN, subject.durationMin ?? 15));
+    endNote = subject.note ?? '';
+  }
+
   ending = true;
   render();
 };
@@ -1137,39 +1215,66 @@ const openEndSheet = (): void => {
  * typed, because a tap straight from the keyboard to this button can land
  * before the field reports it changed. Flushing it here is the difference
  * between "the note saves itself" being true and being nearly true.
+ *
+ * The flush is unconditional rather than "only if it looks different", because
+ * every version of that test is wrong in one direction or the other: against
+ * the fetched flash it re-sends on every end, and against the draft it skips
+ * the flush precisely when a save is still in flight — the case it exists for.
+ * One extra write, a handful of times a night, buys a note that cannot be lost.
  */
 const endFlashFlow = async (): Promise<void> => {
-  const active = state.active;
-  if (!active) return;
+  if (!state.active) return;
   const note = root.querySelector<HTMLTextAreaElement>('#note');
-  if (note && note.value !== (active.note ?? '')) {
-    draft.note = note.value;
-    await persistFlash();
-  }
+  if (note) draft.note = note.value;
+  await persistFlash();
   openEndSheet();
 };
 
 const confirmEnd = async (): Promise<void> => {
-  const active = state.active;
-  if (!active) return;
+  const subject = endSubject();
+  if (!subject) return;
   // No duration when she never had one to give: the record still says the flash
   // happened, it just doesn't claim to know when it stopped.
   const withDuration = !endOverrun || endManual;
   const endedAt = withDuration
-    ? new Date(Date.parse(active.startedAt) + endMinutes * 60_000).toISOString()
+    ? new Date(Date.parse(subject.startedAt) + endMinutes * 60_000).toISOString()
     : null;
-  if (endNote.trim()) {
-    // The closing note is offered as something to *add*, and now that the
-    // details note saves itself there will usually be one there to lose.
-    // Replacing it would quietly delete what she wrote during the flash.
-    const existing = (active.note ?? '').trim();
-    const merged = existing ? `${existing}\n\n${endNote.trim()}` : endNote.trim();
-    await updateFlash(active.id, { note: merged });
+  const note = endNote.trim();
+
+  let ok: boolean;
+  if (subject.status === 'active') {
+    if (note) {
+      // The closing note is offered as something to *add*, and now that the
+      // details note saves itself there will usually be one there to lose.
+      // Replacing it would quietly delete what she wrote during the flash.
+      // `draft` and not the fetched flash, because the draft is what she typed:
+      // a refresh that has not come back yet would make the record look empty.
+      const existing = draft.note.trim();
+      await updateFlash(subject.id, { note: existing ? `${existing}\n\n${note}` : note });
+    }
+    ok = await endFlash(subject.id, { endedAt });
+  } else {
+    /*
+     * A correction to a finished flash, so it goes through PATCH rather than
+     * the end endpoint — which exists to close a *running* flash and must keep
+     * refusing anything else, or a second bedside press would rewrite the flash
+     * that just closed. One write, so a correction can never half-land: the
+     * duration and the note are the same edit and are queued as one.
+     */
+    ok = await updateFlash(subject.id, { endedAt, note: note || null });
   }
-  const ok = await endFlash(active.id, { endedAt });
+
   ending = false;
+  endTarget = null;
   endNote = '';
-  const what = withDuration ? `Ended · ${endMinutes} min` : 'Closed · no duration recorded';
+  const what =
+    subject.status === 'active'
+      ? withDuration
+        ? `Ended · ${endMinutes} min`
+        : 'Closed · no duration recorded'
+      : withDuration
+        ? `Updated · ${endMinutes} min`
+        : 'Updated · no duration recorded';
   toast(ok ? what : 'Saved — will sync when back online');
   await refresh();
 };
@@ -1366,12 +1471,20 @@ root.addEventListener('click', (e) => {
   const btn = target.closest<HTMLElement>(
     '[data-act],[data-tab],[data-sym],[data-more],[data-daymore],[data-sev],[data-mode],[data-view],.padslot',
   );
-  if (!btn) return;
+  // A history row opens the same card the flash was closed with, so a duration
+  // can be corrected or supplied late. Checked after the buttons above so the
+  // sketch thumbnail sitting inside the row still opens the sketch.
+  if (!btn) {
+    const row = target.closest<HTMLElement>('[data-entry]');
+    if (row?.dataset.entry) openEndSheet(row.dataset.entry);
+    return;
+  }
 
   if (btn.dataset.tab) {
     e.preventDefault();
     tab = btn.dataset.tab as Tab;
     ending = false;
+    endTarget = null;
     // Arriving on the Day tab should always land on the day it is now, not on
     // whatever date was last being edited hours ago.
     if (tab === 'day') {
@@ -1460,6 +1573,8 @@ root.addEventListener('click', (e) => {
       break;
     case 'cancel-end':
       ending = false;
+      endTarget = null;
+      endNote = '';
       render();
       break;
     case 'confirm-end':
@@ -1583,6 +1698,14 @@ root.addEventListener('change', (e) => {
 root.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.target as HTMLElement).id === 'pass') {
     root.querySelector<HTMLElement>('[data-act="login"]')?.click();
+    return;
+  }
+  // The history row is a div so the sketch button can live inside it, so the
+  // keyboard activation a real button would have given it has to be spelled out.
+  const row = (e.target as HTMLElement).closest<HTMLElement>('[data-entry]');
+  if (row?.dataset.entry && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    openEndSheet(row.dataset.entry);
   }
 });
 

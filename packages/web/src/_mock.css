@@ -277,7 +277,9 @@
 .flow li em{font-style:normal;color:var(--berry);font-weight:700}
 
 /* ---------- entries ---------- */
-.entry{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:stretch;padding:14px 0;border-bottom:1px solid var(--line)}
+.entry{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:stretch;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.entry:active{background:rgba(179,63,102,.05)}
+.entry:focus-visible{outline:2px solid var(--berry);outline-offset:3px;border-radius:8px}
 .entry:last-child{border-bottom:0;padding-bottom:2px}
 .stem{width:4px;height:auto;min-height:46px;border-radius:2px;background:linear-gradient(180deg,var(--berry),var(--rose))}
 .stem.calm{background:linear-gradient(180deg,var(--sage),var(--sage-soft))}

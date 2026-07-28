@@ -222,11 +222,34 @@ export const projectState = (base: AppState): AppState => {
       }
       case 'update': {
         const patch = op.body as Partial<Flash>;
+        /*
+         * A patch carrying `endedAt` is a correction to a finished flash, and
+         * the duration and status are derived from it exactly as the server
+         * derives them. Spreading the patch alone would leave the old duration
+         * and status sitting next to a new end time, so the row would go on
+         * showing the wrong number until the next fetch agreed with it.
+         */
+        const corrected = (f: PendingFlash): PendingFlash => {
+          const next = { ...f, ...patch, pending: true };
+          if (!('endedAt' in patch)) return next;
+          const endedAt = patch.endedAt ?? null;
+          return {
+            ...next,
+            // Clearing an end time withdraws a guess; it doesn't say the flash
+            // ended deliberately, so the status stands. Mirrors the server.
+            status: endedAt ? 'ended' : f.status,
+            endedAt,
+            durationMin: endedAt ? durationMinutes(f.startedAt, endedAt) : null,
+          };
+        };
         if (active?.id === op.flashId) {
-          active = { ...active, ...patch, pending: true };
-        } else {
-          recent = recent.map((f) => (f.id === op.flashId ? { ...f, ...patch, pending: true } : f));
+          active = corrected(active);
+          // An end time means it is no longer the running flash.
+          if (patch.endedAt) active = null;
         }
+        // The running flash is in `recent` as well, so both copies have to move
+        // together or history goes on showing the old details until a refetch.
+        recent = recent.map((f) => (f.id === op.flashId ? corrected(f) : f));
         break;
       }
       case 'delete': {

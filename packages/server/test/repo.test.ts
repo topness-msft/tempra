@@ -272,6 +272,68 @@ describe('updating a flash', () => {
   });
 });
 
+/*
+ * Correcting a flash after the fact is deliberately PATCH and not the end
+ * endpoint: `end()` closes a *running* flash and must keep refusing anything
+ * else, or a second bedside press in the night would silently rewrite the end
+ * time of the flash that just closed.
+ */
+describe('correcting the duration of a finished flash', () => {
+  const started = '2026-02-01T03:00:00Z';
+
+  it('derives the duration from the end time rather than trusting a client', () => {
+    const f = repo.start({ startedAt: started });
+    repo.end(f.id, '2026-02-01T03:12:00Z');
+    const fixed = repo.update(f.id, { endedAt: '2026-02-01T03:25:00Z' });
+    expect(fixed?.durationMin).toBe(25);
+    expect(fixed?.status).toBe('ended');
+  });
+
+  it('gives a length to a flash that was closed without one', () => {
+    const f = repo.start({ startedAt: started });
+    repo.end(f.id, null);
+    expect(repo.get(f.id)?.durationMin).toBeNull();
+    expect(repo.update(f.id, { endedAt: '2026-02-01T03:40:00Z' })?.durationMin).toBe(40);
+  });
+
+  it('promotes a superseded flash to ended once its length is known', () => {
+    const first = repo.start({ startedAt: started });
+    repo.start({ startedAt: '2026-02-01T04:00:00Z' });
+    expect(repo.get(first.id)?.status).toBe('superseded');
+    const fixed = repo.update(first.id, { endedAt: '2026-02-01T03:20:00Z' });
+    expect(fixed?.status).toBe('ended');
+    expect(fixed?.durationMin).toBe(20);
+  });
+
+  // Withdrawing a guess is not a claim about how the flash closed, so a
+  // superseded record must not be rewritten as a deliberate end.
+  it('clears a duration without changing how the flash closed', () => {
+    const first = repo.start({ startedAt: started });
+    repo.start({ startedAt: '2026-02-01T04:00:00Z' });
+    const cleared = repo.update(first.id, { endedAt: null });
+    expect(cleared?.status).toBe('superseded');
+    expect(cleared?.endedAt).toBeNull();
+    expect(cleared?.durationMin).toBeNull();
+  });
+
+  it('keeps end time and duration travelling together when cleared', () => {
+    const f = repo.start({ startedAt: started });
+    repo.end(f.id, '2026-02-01T03:12:00Z');
+    const cleared = repo.update(f.id, { endedAt: null });
+    expect(cleared?.status).toBe('ended');
+    expect(cleared?.endedAt).toBeNull();
+    expect(cleared?.durationMin).toBeNull();
+  });
+
+  it('corrects the duration and the note as one write', () => {
+    const f = repo.start({ startedAt: started, note: 'wrote this at 3am' });
+    repo.end(f.id, null);
+    const fixed = repo.update(f.id, { endedAt: '2026-02-01T03:18:00Z', note: 'clearer now' });
+    expect(fixed?.durationMin).toBe(18);
+    expect(fixed?.note).toBe('clearer now');
+  });
+});
+
 describe('listing', () => {
   it('returns newest first and honours a limit', () => {
     for (let i = 1; i <= 5; i += 1) {

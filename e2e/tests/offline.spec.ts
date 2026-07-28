@@ -70,6 +70,38 @@ test('ending a flash offline still records the duration once reconnected', async
   expect(flashes[0].durationMin).toBe(9);
 });
 
+/*
+ * A correction made offline has to *look* corrected straight away. The queued
+ * PATCH carries only an end time, so the outbox has to derive the duration and
+ * the status from it exactly as the server would — otherwise the row goes on
+ * showing the old number until a fetch happens to agree, and she corrects it
+ * again.
+ */
+test('correcting a duration offline shows the new one immediately', async ({ page, context }) => {
+  await page.locator('[data-act="begin"]').click();
+  await page.locator('[data-act="end-flash"]').click();
+  await page.locator('.slider.dur').fill('8');
+  await page.locator('[data-act="confirm-end"]').click();
+  await page.locator('[data-tab="history"]').click();
+  await expect(page.locator('.entry').first()).toContainText('8 min');
+
+  await context.setOffline(true);
+  await page.locator('.entry').first().click();
+  await page.locator('.slider.dur').fill('41');
+  await page.locator('[data-act="confirm-end"]').click();
+
+  await expect(page.locator('.entry').first()).toContainText('41 min');
+  await expect(page.locator('.sync-bar')).toBeVisible();
+
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.locator('.sync-bar')).toHaveCount(0, { timeout: 10_000 });
+
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes[0].durationMin).toBe(41);
+  await expect(page.locator('.entry').first()).toContainText('41 min');
+});
+
 test('several flashes queued offline all arrive, in order', async ({ page, context }) => {
   await context.setOffline(true);
 

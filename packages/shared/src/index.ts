@@ -110,11 +110,23 @@ export const endFlashSchema = z.object({
   endedAt: isoDateTimeSchema.nullish(),
 });
 
+/**
+ * `endedAt` here is a *correction* to a flash already in the record, not the act
+ * of ending one — that is `POST /:id/end`, which only ever moves a running flash
+ * to finished. Keeping them apart matters: the end endpoint is what the bedside
+ * button and the Shortcut call, and it must keep refusing a second press rather
+ * than quietly rewriting the flash that just closed.
+ *
+ * `null` means "over, but when it stopped is unknowable" — the same three-state
+ * rule as the rest of the app, and the way a wrong duration is taken back off
+ * the record without inventing a replacement.
+ */
 export const updateFlashSchema = z.object({
   intensity: intensitySchema.nullish(),
   symptoms: z.array(symptomSchema).optional(),
   note: z.string().max(2000).nullish(),
   sketch: sketchSchema.nullish(),
+  endedAt: isoDateTimeSchema.nullish(),
 });
 
 /**
