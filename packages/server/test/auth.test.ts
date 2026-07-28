@@ -234,3 +234,97 @@ describe('bedside webhook with a secret configured', () => {
     expect(res.statusCode).toBe(200);
   });
 });
+
+/*
+ * Hubitat picks the encoding and we do not get a vote. These are the shapes a
+ * hand-configured Rule Machine action has actually been seen to send, and a
+ * rejection is invisible from the bedroom: the bed still cools, so the button
+ * looks like it worked while nothing is logged.
+ */
+describe('bedside webhook body shapes', () => {
+  it('treats an empty JSON body as a press, which the setup guide promises', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().action).toBe('started');
+  });
+
+  it('accepts the form encoding that older Rule Machine builds send', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      payload: 'kind=heartbeat',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().kind).toBe('heartbeat');
+  });
+
+  it('accepts a JSON body mislabelled with another content type', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      headers: { 'content-type': 'text/plain' },
+      payload: '{"kind":"heartbeat"}',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().kind).toBe('heartbeat');
+  });
+
+  /*
+   * Being forgiving stops at the point where forgiveness means guessing.
+   * Recovering from an unreadable body would mean choosing between a press and
+   * a heartbeat, and choosing "press" invents a flash out of noise.
+   */
+  it('refuses an unreadable body rather than guessing it was a press', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      headers: { 'content-type': 'application/json' },
+      payload: 'not json at all',
+    });
+    expect(res.statusCode).toBe(400);
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/flashes',
+      headers: { authorization: `Bearer ${API_TOKEN}` },
+    });
+    expect(list.json().flashes).toHaveLength(0);
+  });
+});
+
+/*
+ * The first thing anyone does with a webhook that looks broken is paste its URL
+ * into a browser. That is a GET, and answering it with the same 404 a wrong
+ * secret gets made the obvious diagnostic report failure even when the hook was
+ * healthy — which is exactly how this integration was misdiagnosed once.
+ */
+describe('bedside webhook opened in a browser', () => {
+  it('admits the secret is right, since the URL is itself the credential', async () => {
+    const res = await app.inject({ method: 'GET', url: `/hooks/bedside/${BEDSIDE}` });
+    expect(res.statusCode).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+    expect(res.json().hint).toContain('POST');
+  });
+
+  it('still tells a wrong secret nothing at all', async () => {
+    const res = await app.inject({ method: 'GET', url: `/hooks/bedside/${BEDSIDE}x` });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: 'not_found' });
+  });
+
+  it('does not start a flash just because the URL was opened', async () => {
+    await app.inject({ method: 'GET', url: `/hooks/bedside/${BEDSIDE}` });
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/flashes',
+      headers: { authorization: `Bearer ${API_TOKEN}` },
+    });
+    expect(list.json().flashes).toHaveLength(0);
+  });
+});

@@ -316,69 +316,154 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
 
   // ----------------------------------------------------------------- bedside
 
-  /**
-   * Hubitat posts here. The secret is the last path segment because Rule
-   * Machine cannot attach headers. Both presses and heartbeats land here so
-   * that silence can be distinguished from a broken integration.
+  /*
+   * The webhook lives in its own plugin scope so the forgiving body parsing
+   * below reaches this route and nothing else. The rest of the API is only ever
+   * called by our own code and should keep rejecting a malformed body loudly.
+   * This route is called by a hand-typed field in a Rule Machine action at 3am,
+   * where a rejection is invisible: the bed still cools, so from the bedroom
+   * the button looks like it worked while nothing is logged.
    */
-  app.post<{ Params: { secret: string; kind?: string } }>(
-    '/hooks/bedside/:secret',
-    async (req, reply) => {
+  await app.register(async (hooks) => {
+    /*
+     * Hubitat decides the encoding and we do not get a vote. Older Rule Machine
+     * builds post form-encoded with no setting to change it, and a rule can be
+     * configured with a JSON content type and no body at all. Fastify's stock
+     * parsers answer 400 to the empty body and 415 to the form encoding, and
+     * the setup guide has always promised the empty POST works.
+     *
+     * A non-empty body we cannot read is a different matter and still fails.
+     * Recovering from it would mean guessing between a press and a heartbeat,
+     * and guessing "press" fabricates a flash out of noise — the one thing this
+     * app must never do. A loud failure is better than an invented row.
+     */
+    const parseBedsideBody = (
+      _req: FastifyRequest,
+      payload: string,
+      done: (err: Error | null, body?: unknown) => void,
+    ): void => {
+      const raw = typeof payload === 'string' ? payload.trim() : '';
+      if (raw === '') return done(null, {});
+      try {
+        return done(null, JSON.parse(raw));
+      } catch {
+        // Not JSON. Fall through and try the form encoding before giving up.
+      }
+      if (raw.includes('=')) return done(null, Object.fromEntries(new URLSearchParams(raw)));
+      const err = new Error('bedside body is neither JSON nor form encoded') as Error & {
+        statusCode?: number;
+      };
+      err.statusCode = 400;
+      return done(err);
+    };
+
+    hooks.addContentTypeParser('application/json', { parseAs: 'string' }, parseBedsideBody);
+    hooks.addContentTypeParser(
+      'application/x-www-form-urlencoded',
+      { parseAs: 'string' },
+      parseBedsideBody,
+    );
+    /*
+     * text/plain has to be named explicitly. Fastify ships a parser for it that
+     * hands the body through as a raw string, and a catch-all does not displace
+     * a type that is already registered. Left alone, a JSON heartbeat labelled
+     * text/plain failed the schema and fell back to the "press" default —
+     * quietly turning a health check into a hot flash that never happened.
+     */
+    hooks.addContentTypeParser('text/plain', { parseAs: 'string' }, parseBedsideBody);
+    // A rule can also be left with no content type at all. Take whatever turns
+    // up rather than answering 415 to a real press.
+    hooks.addContentTypeParser('*', { parseAs: 'string' }, parseBedsideBody);
+
+    /*
+     * The first thing anyone does with a webhook that looks broken is paste its
+     * URL into a browser. That is a GET, and it used to fall through to the
+     * catch-all 404 — byte-identical to the answer for a wrong secret. So the
+     * one diagnostic everybody reaches for could not tell a healthy hook from a
+     * mistyped one, and reported failure either way.
+     *
+     * Answering honestly costs nothing: this URL *is* the credential, so anyone
+     * who can make this request could already POST and start a flash. A wrong
+     * secret still gets the flat 404 and learns nothing.
+     */
+    hooks.get<{ Params: { secret: string } }>('/hooks/bedside/:secret', async (req, reply) => {
       if (!bedsideLimiter.allow(req.ip)) return reply.code(429).send({ error: 'rate_limited' });
       if (!config.bedsideSecret || !safeEqual(req.params.secret, config.bedsideSecret)) {
-        req.log.warn({ ip: req.ip }, 'bedside webhook rejected');
         return reply.code(404).send({ error: 'not_found' });
       }
+      return reply.code(405).header('allow', 'POST').send({
+        ok: false,
+        error: 'method_not_allowed',
+        hint: 'This secret is correct. POST to this URL to log a press.',
+      });
+    });
 
-      const body = z
-        .object({ kind: z.enum(['press', 'heartbeat']).default('press') })
-        .safeParse(req.body ?? {});
-      const kind = body.success ? body.data.kind : 'press';
-      const now = new Date().toISOString();
+    /**
+     * Hubitat posts here. The secret is the last path segment because Rule
+     * Machine cannot attach headers. Both presses and heartbeats land here so
+     * that silence can be distinguished from a broken integration.
+     */
+    hooks.post<{ Params: { secret: string; kind?: string } }>(
+      '/hooks/bedside/:secret',
+      async (req, reply) => {
+        if (!bedsideLimiter.allow(req.ip)) return reply.code(429).send({ error: 'rate_limited' });
+        if (!config.bedsideSecret || !safeEqual(req.params.secret, config.bedsideSecret)) {
+          req.log.warn({ ip: req.ip }, 'bedside webhook rejected');
+          return reply.code(404).send({ error: 'not_found' });
+        }
 
-      if (kind === 'heartbeat') {
+        const body = z
+          .object({ kind: z.enum(['press', 'heartbeat']).default('press') })
+          .safeParse(req.body ?? {});
+        const kind = body.success ? body.data.kind : 'press';
+        const now = new Date().toISOString();
+
+        if (kind === 'heartbeat') {
+          opts.db
+            .prepare(
+              "INSERT INTO device_events (device, kind, at) VALUES ('bedside', 'heartbeat', ?)",
+            )
+            .run(now);
+          return { ok: true, kind };
+        }
+
+        /*
+         * A press always starts a flash. It is never a toggle.
+         *
+         * The button exists so that one tap in the dark starts the bed cooling and
+         * records that a flash began. The hope is that she falls back to sleep, so
+         * a second press to "stop the recording" is not something that will ever
+         * happen. Treating a press as an end would mean the most likely second
+         * press of the night — another flash — silently closed the first one
+         * instead of recording a new one.
+         *
+         * If a flash is already running it becomes superseded, with no ended_at
+         * and no duration: we know a new flash started, we do not know when the
+         * old one stopped, and we will not invent it.
+         */
+        const last = opts.db
+          .prepare(
+            "SELECT at FROM device_events WHERE device = 'bedside' AND kind = 'press' ORDER BY at DESC LIMIT 1",
+          )
+          .get() as { at: string } | undefined;
+
+        // A physical button pressed in the dark gets double-tapped, and Hubitat
+        // retries. Neither should show up as two flashes a few seconds apart.
+        if (last && Date.now() - Date.parse(last.at) < DEBOUNCE_MS) {
+          return { ok: true, kind, action: 'debounced', flash: repo.active() };
+        }
+
+        const flash = repo.start({ source: 'homekit' });
         opts.db
-          .prepare("INSERT INTO device_events (device, kind, at) VALUES ('bedside', 'heartbeat', ?)")
-          .run(now);
-        return { ok: true, kind };
-      }
+          .prepare(
+            "INSERT INTO device_events (device, kind, at, flash_id) VALUES ('bedside', 'press', ?, ?)",
+          )
+          .run(now, flash.id);
 
-      /*
-       * A press always starts a flash. It is never a toggle.
-       *
-       * The button exists so that one tap in the dark starts the bed cooling and
-       * records that a flash began. The hope is that she falls back to sleep, so
-       * a second press to "stop the recording" is not something that will ever
-       * happen. Treating a press as an end would mean the most likely second
-       * press of the night — another flash — silently closed the first one
-       * instead of recording a new one.
-       *
-       * If a flash is already running it becomes superseded, with no ended_at
-       * and no duration: we know a new flash started, we do not know when the
-       * old one stopped, and we will not invent it.
-       */
-      const last = opts.db
-        .prepare(
-          "SELECT at FROM device_events WHERE device = 'bedside' AND kind = 'press' ORDER BY at DESC LIMIT 1",
-        )
-        .get() as { at: string } | undefined;
-
-      // A physical button pressed in the dark gets double-tapped, and Hubitat
-      // retries. Neither should show up as two flashes a few seconds apart.
-      if (last && Date.now() - Date.parse(last.at) < DEBOUNCE_MS) {
-        return { ok: true, kind, action: 'debounced', flash: repo.active() };
-      }
-
-      const flash = repo.start({ source: 'homekit' });
-      opts.db
-        .prepare(
-          "INSERT INTO device_events (device, kind, at, flash_id) VALUES ('bedside', 'press', ?, ?)",
-        )
-        .run(now, flash.id);
-
-      return { ok: true, kind, action: 'started', flash };
-    },
-  );
+        return { ok: true, kind, action: 'started', flash };
+      },
+    );
+  });
 
   // -------------------------------------------------------------- test hatch
 

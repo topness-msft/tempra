@@ -91,6 +91,38 @@ driver rather than a generic one, and hit **Configure**.
 Not sure which button number a press sends? Open the device page, then the hub's
 **Logs** in a second tab, and press it. The event shows the number.
 
+#### If the button lives in Apple Home, not on the hub
+
+A HomeKit button never reaches Hubitat as a button. It reaches an integration —
+HomeKit Bridge, Homebridge — which calls `on()` on a **virtual switch**. There is
+no button device to pick, and the trigger has to watch that switch instead.
+
+Choose capability **Switch**, the virtual switch, and state **on**.
+
+**Do not choose "Physical Switch".** It is the more precise-sounding option and it
+will silently never fire. Rule Machine subscribes it to the same `switch.on` event
+but routes it through a handler that first checks `evt.type == "physical"`. An
+integration calling `on()` produces a *digital* event with no type set, so the
+handler returns without running a single action.
+
+Nothing about this looks like a failure. The hub's event list still shows the rule
+under **Triggered apps**, because the handler genuinely was invoked — it just
+declined to do anything. The bed cools, because that's a separate action on a
+separate device. The only visible symptom is that Tempra stays empty.
+
+**After changing a trigger, open the rule and tap Done.** Rule Machine only
+rebuilds its event subscriptions inside `updated()`, which nothing but leaving the
+rule triggers. Change the capability and walk away and the settings will show your
+new trigger while the hub is still subscribed via the old handler. Confirm it took
+on **Settings** → **Apps** → your rule → the app status page: under **Event
+Subscriptions** the handler should read `allHandlerX`, not `physicalHandler`.
+
+One consequence worth accepting deliberately: a plain Switch trigger fires whenever
+*anything* turns that switch on, including your own schedules and other
+automations. If the switch is shared, those presses-that-weren't get logged as
+flashes. Either accept it, or give the button a virtual switch of its own that
+nothing else touches.
+
 ### Setting the actions
 
 Under **Actions to Run**, tap **Click to set**, then pick from the **Select Action
@@ -119,9 +151,10 @@ Add these in order:
    The body is optional — an empty POST is treated as a press — but sending it
    explicitly means the log says what happened rather than relying on a default.
 
-   If there's no content type field, your hub firmware predates it. Update the
-   platform; older Rule Machine builds sent everything as form-encoded, which this
-   endpoint won't parse as JSON.
+   If there's no content type field, your hub firmware predates it and the body
+   goes out form-encoded. That is fine; the endpoint accepts form-encoded, an empty
+   body, and a JSON body mislabelled `text/plain`, precisely because none of this
+   is configurable from the rule. You do not need to update the platform for this.
 
 3. Optional: a very brief LED or dim-light acknowledgement, so a press that did
    nothing is distinguishable from a press that worked. Keep it under a second and
@@ -191,6 +224,20 @@ curl -X POST https://your-app.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET \
 
 A press returns `{"ok":true,"kind":"press","action":"started","flash":{...}}`.
 
+To check the URL and secret **without** logging anything, open it in a browser, or:
+
+```bash
+curl -i https://your-app.fly.dev/hooks/bedside/YOUR_BEDSIDE_SECRET
+```
+
+A GET never records a press. If the secret is right you get `405` and a hint
+saying so; if it's wrong you get the same `404` as any unknown path. That
+asymmetry is deliberate — pasting the URL into a browser is the first thing
+anyone tries, and it used to answer `{"error":"not_found"}` whether or not
+anything was wrong, which reads as a broken hook and sends you looking in the
+wrong place. Telling the truth here gives nothing away: this URL *is* the
+credential, so anyone who can make the request could already start a flash.
+
 ---
 
 ## Troubleshooting
@@ -199,12 +246,16 @@ A press returns `{"ok":true,"kind":"press","action":"started","flash":{...}}`.
 | --- | --- |
 | Can't find Rule Machine at all | On platform 2.4.x it's under **Automations** in the sidebar, not Apps — and it won't appear in the Add Built-In App list either. Nothing is missing. |
 | Can't find the HTTP action | It's worded **"Send HTTP Request..."** in the Select Action to Add list, not "HTTP Request" or "POST". |
-| Button isn't in the device list | You skipped the capability picker — choose **Button** first. If it's still missing, the device's driver doesn't expose the button capability. |
-| No content type field | Hub firmware is too old. Update the platform, or the body goes out form-encoded and won't parse as JSON. |
-| `404` | Wrong secret, or a typo in the URL. The endpoint returns 404 rather than 401 so that probing it tells an attacker nothing. |
+| Button isn't in the device list | You skipped the capability picker — choose **Button** first. If it's still missing, the device's driver doesn't expose the button capability. A HomeKit button will never appear: it arrives as a virtual switch. |
+| No content type field | Hub firmware predates it, so the body goes out form-encoded. Harmless — the endpoint accepts that. |
+| Opening the URL in a browser | A browser sends GET and this endpoint only answers POST. A correct secret returns `405` with a hint, so this is a usable check; a wrong one returns `404`. |
+| `404` | Wrong secret, or a typo in the URL. A wrong secret returns 404 rather than 401 so that probing it tells an attacker nothing. |
 | `429` | Rate limited — you're testing faster than a human presses buttons. Wait a minute. |
 | `{"action":"debounced"}` | Working as designed. Under 60s since the last press. |
-| Bed cools, nothing logged | The HTTP Request action is failing. Check Hubitat's **Logs** for the rule; usually the URL or the content type. |
+| Bed cools, nothing logged | The rule never got as far as the HTTP action. Check the hub's **Logs** for the rule: a working press logs three lines — `Event:`, `Triggered:`, `Action: Send POST to:`. No lines at all means the trigger dropped the event, most often a **Physical Switch** trigger fed by a HomeKit integration. See *If the button lives in Apple Home*. |
+| Rule appears under "Triggered apps" but does nothing | Same cause. That column records that the handler was called, not that it acted, so a Physical Switch trigger discarding a digital event still shows up there. |
+| Trigger looks right but still nothing | Subscriptions are only rebuilt when the rule is left via **Done**. Check the app status page: **Event Subscriptions** should show `allHandlerX`, not `physicalHandler`. |
+| Presses log the first time then stop | A virtual switch only emits `on` when it changes. Press while it's already on and the hub records `command-on` with no event, so nothing triggers. Give the button its own switch with auto-off if you need every press. |
 | Logged, bed doesn't cool | The cooling action is failing, and it's ordered first for exactly this reason — the two are independent. Test that device on its own. |
 | App says the button is stale | No heartbeat in 3 hours. Check the hub is online and Rule 2 is enabled. |
 
