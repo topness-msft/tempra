@@ -341,13 +341,57 @@ test('a flash slept through can be given a length later', async ({ page }) => {
 
   await page.locator('.entry').first().click();
   await expect(page.locator('.sheetbar')).toContainText('Editing this flash');
-  await expect(page.getByText('no length against it')).toBeVisible();
 
-  await page.locator('[data-act="end-manual"]').click();
-  await page.locator('.slider.dur').fill('22');
+  /*
+   * Editing has no case to argue, so the slider is simply there — no warning
+   * to read past first. It stays honest by not counting as an answer until she
+   * moves it, so opening the row to fix a note cannot stamp a length on a flash
+   * she slept through.
+   */
+  const slider = page.locator('.slider.dur');
+  await expect(slider).toBeVisible();
+  await expect(page.locator('[data-act="end-manual"]')).toHaveCount(0);
+  await expect(page.locator('[data-act="confirm-end"]')).toContainText('Save with no duration');
+
+  await slider.fill('22');
+  await expect(page.locator('[data-act="confirm-end"]')).toContainText('Save · 22 min');
   await page.locator('[data-act="confirm-end"]').click();
 
   await expect(page.locator('.entry').first()).toContainText('22 min');
+});
+
+/*
+ * A record with no length has to start the slider somewhere, and her own
+ * average is better evidence than any number we could pick — it is also the
+ * number she is most likely correcting towards. Read once when the sheet opens;
+ * it is a benchmark, not a live reading.
+ */
+test('the slider starts from her own average when there is no length on record', async ({
+  page,
+}) => {
+  for (const min of [10, 30]) {
+    const f = await (
+      await page.request.post('/api/flashes', {
+        data: { startedAt: new Date(Date.now() - 24 * 60 * 60_000).toISOString() },
+      })
+    ).json();
+    await page.request.post(`/api/flashes/${f.id}/end`, {
+      data: { endedAt: new Date(Date.parse(f.startedAt) + min * 60_000).toISOString() },
+    });
+  }
+  // ...and one with no length at all, which is the row being corrected.
+  await page.request.post('/api/flashes', {
+    data: { startedAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString() },
+  });
+  await page.reload();
+  await page.locator('[data-act="end-flash"]').click();
+  await page.locator('[data-act="confirm-end"]').click();
+
+  await page.locator('[data-tab="history"]').click();
+  await page.locator('.entry').first().click();
+
+  // The average of 10 and 30, not a number of ours.
+  await expect(page.locator('.gauge .val')).toContainText('20');
 });
 
 /*

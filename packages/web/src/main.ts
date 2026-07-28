@@ -472,6 +472,29 @@ const endSubject = (): PendingFlash | null => {
   return state.recent.find((f) => f.id === endTarget) ?? null;
 };
 
+/** Every flash with a length on it — the ones the averages can speak for. */
+const timedFlashes = (): PendingFlash[] => state.recent.filter((f) => f.durationMin !== null);
+
+/**
+ * Her own typical flash. Used as the starting point whenever a duration has to
+ * be offered rather than measured, because her record is better evidence than
+ * any number we could pick, and it is the number she is most likely to be
+ * correcting *towards*. Null until something has been timed, in which case
+ * there is nothing to go on and a plain default is the honest fallback.
+ */
+const averageDuration = (): number | null => {
+  const timed = timedFlashes();
+  if (!timed.length) return null;
+  const avg = Math.round(timed.reduce((a, f) => a + (f.durationMin ?? 0), 0) / timed.length);
+  return Math.max(1, Math.min(MAX_DURATION_MIN, avg));
+};
+
+/** One place, so the button and the mid-drag patch of it can never disagree. */
+const endCtaLabel = (live: boolean, willRecord: boolean): string => {
+  if (live) return willRecord ? `Confirm end · ${endMinutes} min` : 'Close without a duration';
+  return willRecord ? `Save · ${endMinutes} min` : 'Save with no duration';
+};
+
 const endView = (): string => {
   const subject = endSubject();
   if (!subject) return logView();
@@ -480,23 +503,43 @@ const endView = (): string => {
   // is that nothing here is running, so nothing is being measured now.
   const live = subject.status === 'active';
 
-  // When it overran, a duration is opt-in rather than the default.
-  const askDuration = !endOverrun || endManual;
+  /*
+   * Whether a duration will actually be written. When a running flash overran
+   * the hour the timer is not evidence, so one is opt-in — and there the panel
+   * stays a refusal until she opts in, because the app is arguing against
+   * inventing a number.
+   *
+   * Editing has no such argument to make: she opened the record precisely to
+   * put a length on it, so the slider is simply there. It stays honest by not
+   * counting as an answer until she moves it, which is what keeps a visit to
+   * fix a *note* from silently stamping fifteen minutes on a flash she slept
+   * through.
+   */
+  const willRecord = !endOverrun || endManual;
+  const showSlider = live ? willRecord : true;
   const pct = ((endMinutes - 1) / (MAX_DURATION_MIN - 1)) * 100;
   const endsAt = new Date(Date.parse(subject.startedAt) + endMinutes * 60_000).toISOString();
 
-  const durationLabel = live ? (endOverrun ? 'your estimate' : 'measured') : 'as you remember it';
+  const durationLabel = live
+    ? endOverrun
+      ? 'your estimate'
+      : 'measured'
+    : willRecord
+      ? 'as you remember it'
+      : 'not recorded';
   const durationHint = live
     ? endOverrun
       ? 'Only you know this one — the timer ran too long to trust.'
       : `We timed ${endMinutes} minutes. Drag only if that's not right.`
-    : subject.durationMin !== null
-      ? `Recorded as ${subject.durationMin} minutes.`
-      : 'This one was never given a length.';
+    : willRecord
+      ? `Recorded as ${endMinutes} minutes.`
+      : `This one was never given a length${
+          subject.status === 'superseded' ? ', because another started before it closed' : ''
+        }. Starting from your usual — drag to set it.`;
 
-  const durationPanel = askDuration
+  const durationPanel = showSlider
     ? `<div class="panel warm">
-         <p class="lab">Duration <u>${durationLabel}</u></p>
+         <p class="lab">Duration <u class="dur-lab">${durationLabel}</u></p>
          <div class="gauge">
            <span class="val dur-val">${endMinutes}<small>min</small></span>
            <span class="word dur-end">ends ${clock(endsAt)}</span>
@@ -506,23 +549,12 @@ const endView = (): string => {
          <div class="key"><span>1 min</span><span>${MAX_DURATION_MIN} min</span></div>
          <p class="hintline">${durationHint}</p>
        </div>`
-    : live
-      ? `<div class="panel warm">
+    : `<div class="panel warm">
          <p class="lab">Duration <u>not recorded</u></p>
          <p class="bodytext">It has been running for ${roughSpan(
            Math.round((Date.now() - Date.parse(subject.startedAt)) / 60_000),
          )} — long enough that you were probably asleep. We'll record that the flash
            happened and leave the end time blank rather than guess it.</p>
-         <button class="btn btn-quiet" data-act="end-manual">I know roughly how long it was</button>
-       </div>`
-      : `<div class="panel warm">
-         <p class="lab">Duration <u>not recorded</u></p>
-         <p class="bodytext">This flash has no length against it${
-           subject.status === 'superseded'
-             ? ' — another one started before it was closed'
-             : ', because it ran too long to time'
-         }. That is a fair record of a flash you slept through, and worth leaving
-           alone unless you actually remember.</p>
          <button class="btn btn-quiet" data-act="end-manual">I know roughly how long it was</button>
        </div>`;
 
@@ -536,11 +568,9 @@ const endView = (): string => {
         <div class="hd">
           <p class="kicker">${live ? '' : `${dayFmt.format(new Date(subject.startedAt))} · `}Started ${clock(subject.startedAt)}</p>
           <h2 class="h1">${
-            askDuration
+            showSlider
               ? 'How long did <em>it last?</em>'
-              : live
-                ? 'Close this <em>one out</em>'
-                : 'Leave it <em>as it is?</em>'
+              : 'Close this <em>one out</em>'
           }</h2>
         </div>
         ${durationPanel}
@@ -550,15 +580,7 @@ const endView = (): string => {
         </div>
       </div>
       <div class="cta">
-        <button class="btn btn-primary" data-act="confirm-end">${
-          live
-            ? askDuration
-              ? `Confirm end · ${endMinutes} min`
-              : 'Close without a duration'
-            : askDuration
-              ? `Save · ${endMinutes} min`
-              : 'Save with no duration'
-        }</button>
+        <button class="btn btn-primary" data-act="confirm-end">${endCtaLabel(live, willRecord)}</button>
         <button class="btn btn-quiet" style="margin-top:6px" data-act="cancel-end">${
           live ? 'Cancel — leave it running' : 'Cancel — change nothing'
         }</button>
@@ -752,14 +774,12 @@ const daybandHtml = (log: PendingDayLog | undefined): string => {
 const historyView = (): string => {
   const flashes = state.recent;
   const today = flashes.filter((f) => dayKey(f.startedAt) === localDateOf());
-  const timed = flashes.filter((f) => f.durationMin !== null);
+  const timed = timedFlashes();
   const withIntensity = flashes.filter((f) => f.intensity !== null);
   const avgPeak = withIntensity.length
     ? (withIntensity.reduce((a, f) => a + (f.intensity ?? 0), 0) / withIntensity.length).toFixed(1)
     : '—';
-  const avgDur = timed.length
-    ? Math.round(timed.reduce((a, f) => a + (f.durationMin ?? 0), 0) / timed.length)
-    : null;
+  const avgDur = averageDuration();
 
   const dayLogs = new Map(state.days.map((d) => [d.date, d]));
 
@@ -1185,23 +1205,36 @@ const openEndSheet = (id?: string): void => {
   if (!subject) return;
   endTarget = subject.id;
   endManual = false;
+  // Read once, here, as a starting point. It is a benchmark and not a live
+  // reading, so nothing re-derives it while the sheet is open.
+  const usual = averageDuration();
 
   if (subject.status === 'active') {
     const measured = Math.round((Date.now() - Date.parse(subject.startedAt)) / 60_000);
     endOverrun = measured > MAX_DURATION_MIN;
-    // On an overrun the timer is not evidence, so the slider starts from a
-    // neutral half hour instead of a number we know to be wrong.
-    endMinutes = endOverrun ? 30 : Math.max(1, Math.min(MAX_DURATION_MIN, measured));
+    // On an overrun the timer is not evidence, so the slider starts from her own
+    // typical flash rather than a number we know to be wrong.
+    endMinutes = endOverrun ? (usual ?? 30) : Math.max(1, Math.min(MAX_DURATION_MIN, measured));
     // Closing a flash adds to whatever she wrote while it was happening, so the
     // box starts empty and says "add".
     endNote = '';
   } else {
-    // Nothing is being measured, so there is no overrun to reason about: either
-    // a duration is on the record, or she is being asked whether she remembers
-    // one. Editing shows the note as it stands rather than appending to it —
-    // this is the only way to correct something written at 3am.
+    /*
+     * Nothing is running, so there is nothing to measure and no case to argue:
+     * she opened this record to put a length on it, so the slider is simply
+     * there. It starts from what is on the record, or failing that from her own
+     * average, which is both better evidence than any number we could pick and
+     * the one she is most likely correcting towards.
+     *
+     * `endOverrun` here means only "no length on the record yet", which keeps
+     * the slider from counting as an answer until she moves it — so a visit to
+     * fix a *note* cannot silently stamp a duration on a flash she slept through.
+     *
+     * The note is shown as it stands and edited in place rather than appended
+     * to. This is the only way to correct something written at 3am.
+     */
     endOverrun = subject.durationMin === null;
-    endMinutes = Math.max(1, Math.min(MAX_DURATION_MIN, subject.durationMin ?? 15));
+    endMinutes = Math.max(1, Math.min(MAX_DURATION_MIN, subject.durationMin ?? usual ?? 15));
     endNote = subject.note ?? '';
   }
 
@@ -1634,23 +1667,35 @@ root.addEventListener('input', (e) => {
   }
 
   if (el.classList.contains('dur')) {
+    const subject = endSubject();
     endMinutes = Number(el.value);
-    const active = state.active;
+    // Touching the slider is the answer. On a record with no length that is
+    // what turns a starting point into a duration she is actually claiming.
+    const first = !endManual && endOverrun;
+    endManual = true;
+    const live = subject?.status === 'active';
     el.style.setProperty('--pct', `${((endMinutes - 1) / (MAX_DURATION_MIN - 1)) * 100}%`);
     const val = root.querySelector('.dur-val');
     if (val) val.innerHTML = `${endMinutes}<small>min</small>`;
     const ends = root.querySelector('.dur-end');
-    if (ends && active) {
+    if (ends && subject) {
       ends.textContent = `ends ${clock(
-        new Date(Date.parse(active.startedAt) + endMinutes * 60_000).toISOString(),
+        new Date(Date.parse(subject.startedAt) + endMinutes * 60_000).toISOString(),
       )}`;
     }
     const cta = root.querySelector('[data-act="confirm-end"]');
-    if (cta) cta.textContent = `Confirm end · ${endMinutes} min`;
+    if (cta) cta.textContent = endCtaLabel(live, true);
     const hint = root.querySelector('.hintline');
-    // In the overrun case the number is her estimate, not something we timed.
-    if (hint && !endOverrun) {
+    if (hint && live && !endOverrun) {
+      // Only the running, in-range flash was actually timed by us.
       hint.textContent = `We timed ${endMinutes} minutes. Drag only if that's not right.`;
+    } else if (hint && !live) {
+      hint.textContent = `Recorded as ${endMinutes} minutes.`;
+    }
+    // The panel heading still says "not recorded" until the first drag.
+    if (first) {
+      const lab = root.querySelector('.dur-lab');
+      if (lab) lab.textContent = 'as you remember it';
     }
     return;
   }
