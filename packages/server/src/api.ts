@@ -20,9 +20,11 @@ const SESSION_COOKIE = 'tempra_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365; // a year: re-auth at 3am is hostile
 
 /**
- * Two bedside presses closer together than this are treated as one. A physical
- * button pressed in the dark gets double-tapped, and Hubitat retries failed
- * posts; neither should become two flashes seconds apart.
+ * Two starts closer together than this, from a source that cannot show her
+ * whether the first one worked, are treated as one. A physical button pressed
+ * in the dark gets double-tapped and Hubitat retries failed posts; a Siri
+ * shortcut gets run twice because nothing confirmed the first. None of those
+ * should become two flashes seconds apart.
  */
 const DEBOUNCE_MS = 60_000;
 
@@ -152,6 +154,33 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_body', detail: parsed.error.issues });
     }
+
+    /*
+     * Siri fires blind. She says it, hears nothing useful back, is not sure it
+     * worked, and says it again — and two flashes appear a few seconds apart
+     * where there was one.
+     *
+     * Only the blind sources are debounced. The app shows her the flash it just
+     * started, so a repeat there is deliberate: starting a second flash while
+     * one is still running is a real thing she can do, and swallowing it would
+     * lose the record. The app also sends a clientId, which already makes a
+     * replayed outbox write idempotent.
+     *
+     * A request that names its own startedAt is exempt too. That is someone
+     * being deliberate about a particular moment rather than saying "now", and
+     * a backfill of two close flashes must not be quietly collapsed into one.
+     */
+    const blind = (parsed.data.source ?? 'app') !== 'app';
+    if (blind && !parsed.data.startedAt) {
+      const last = repo.lastCreated();
+      if (last && Date.now() - Date.parse(last.createdAt) < DEBOUNCE_MS) {
+        // 200 rather than 201: nothing was created. Returning the whole flash
+        // lets the shortcut still answer "started at 3:14" instead of an error,
+        // which is true, and is what she asked to know.
+        return reply.code(200).send(last);
+      }
+    }
+
     const flash = repo.start(parsed.data);
     return reply.code(201).send(flash);
   });

@@ -110,6 +110,18 @@ export class FlashRepo {
   }
 
   /**
+   * The flash written most recently, whatever its status. Ordered by created_at
+   * rather than started_at because this answers "did we just record one?", and
+   * a caller is allowed to backdate started_at.
+   */
+  lastCreated(): Flash | null {
+    const row = this.db
+      .prepare('SELECT * FROM flashes ORDER BY created_at DESC, rowid DESC LIMIT 1')
+      .get() as FlashRow | undefined;
+    return row ? this.hydrate(row) : null;
+  }
+
+  /**
    * Starting a flash closes any flash already running. The old one becomes
    * `superseded` with no end time and no duration: the app observed that it
    * stopped mattering, not when it stopped.

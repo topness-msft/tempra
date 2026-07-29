@@ -178,26 +178,24 @@ filled in — that's the intended workflow: capture now, annotate whenever.
 
 ---
 
-## 4. Optional: guard against double-taps
+## 4. Double-taps are handled for you
 
-Add a `clientId` and the server will treat a repeat as the same flash, returning
-the original instead of creating a second one.
+You cannot see whether Siri worked. So when you are not sure, you say it again —
+and that would log two flashes a few seconds apart.
 
-Above the Get Contents of URL action add:
+It doesn't. The server treats a second shortcut request within 60 seconds of the
+last flash as the same flash, and answers with that flash rather than creating a
+new one. There is nothing to set up.
 
-1. **Current Date**
-2. **Format Date** → Date Format: **Custom** → Format String: `yyyy-MM-dd-HH-mm`
+A genuine second flash within sixty seconds would also be swallowed. That is the
+same trade the bedside button has always made, for the same reason: at 3am a
+repeat because you weren't sure is far more likely than two distinct flashes a
+minute apart.
 
-Then one more Request Body field:
-
-| Type | Key | Value |
-| --- | --- | --- |
-| Text | `clientId` | `shortcut-` followed by the **Formatted Date** variable |
-
-Two taps in the same minute now log one flash. A genuine second flash within the
-same minute would also be swallowed — the same trade the bedside button makes with
-its 60-second debounce, and for the same reason: at 3am an accidental double-tap is
-far more likely than two distinct flashes sixty seconds apart.
+The app itself is not affected — it shows you the flash it just started, so a
+second one there is deliberate and gets recorded. Nor is a request that sets its
+own `startedAt`, since naming a moment is deliberate in a way that saying "now"
+is not.
 
 ---
 

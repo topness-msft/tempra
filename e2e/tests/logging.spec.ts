@@ -189,7 +189,11 @@ test('a flash started from a Shortcut supersedes the running one without inventi
   await expect(page.locator('[data-act="compose-new"]')).toBeVisible();
 
   const res = await page.request.post('/api/flashes', {
-    data: { intensity: 5, source: 'shortcut' },
+    // A shortcut firing seconds after any other flash is debounced as a repeat,
+    // so name the moment to say this is a separate one. That is the honest
+    // shape of the case anyway: two flashes this close apart is a claim you
+    // have to make deliberately.
+    data: { intensity: 5, source: 'shortcut', startedAt: new Date().toISOString() },
   });
   expect(res.status()).toBe(201);
 
@@ -203,6 +207,25 @@ test('a flash started from a Shortcut supersedes the running one without inventi
 
   // Exactly one flash may be active at a time.
   expect(flashes.filter((f: { status: string }) => f.status === 'active')).toHaveLength(1);
+});
+
+test('saying it to Siri twice because you were not sure logs one flash', async ({ page }) => {
+  // She cannot see whether Siri worked, so she repeats herself. Two requests,
+  // one flash — and the second still gets a whole flash back so the shortcut
+  // can tell her when it started rather than reporting a failure.
+  const first = await page.request.post('/api/flashes', { data: { source: 'shortcut' } });
+  expect(first.status()).toBe(201);
+
+  const second = await page.request.post('/api/flashes', { data: { source: 'shortcut' } });
+  expect(second.status()).toBe(200);
+  expect((await second.json()).id).toBe((await first.json()).id);
+
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes).toHaveLength(1);
+
+  // And the one flash is hers to see, not a silently dropped write.
+  await page.reload();
+  await expect(page.locator('.ribbon')).toBeVisible();
 });
 
 test('the log screen edits the running flash instead of overwriting it with defaults', async ({
