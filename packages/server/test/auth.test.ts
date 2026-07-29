@@ -296,6 +296,53 @@ describe('bedside webhook body shapes', () => {
     });
     expect(list.json().flashes).toHaveLength(0);
   });
+
+  /*
+   * The same reasoning one layer up. A body that parses but does not validate
+   * used to fall through to the "press" default, so a capitalised value or a
+   * typo'd key in a hand-edited rule field turned the hourly heartbeat into an
+   * hourly hot flash that never happened — silently, and forever.
+   */
+  it.each([
+    ['a typo in the key', '{"knid":"heartbeat"}'],
+    ['an unknown kind', '{"kind":"tap"}'],
+    ['a body that is not an object', '["heartbeat"]'],
+    ['a bare number', '5'],
+  ])('refuses %s rather than recording a press that never happened', async (_label, payload) => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      headers: { 'content-type': 'application/json' },
+      payload,
+    });
+    expect(res.statusCode).toBe(400);
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/flashes',
+      headers: { authorization: `Bearer ${API_TOKEN}` },
+    });
+    expect(list.json().flashes).toHaveLength(0);
+  });
+
+  /*
+   * Forgiving case and whitespace is not guessing between two meanings — it is
+   * reading the one that was plainly written. Worth doing, because these values
+   * get typed by hand into a hub form.
+   */
+  it.each(['Heartbeat', 'heartbeat ', ' HEARTBEAT'])(
+    'reads %j as the heartbeat it obviously is',
+    async (kind) => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/hooks/bedside/${BEDSIDE}`,
+        headers: { 'content-type': 'application/json' },
+        payload: JSON.stringify({ kind }),
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().kind).toBe('heartbeat');
+    },
+  );
 });
 
 /*

@@ -156,6 +156,12 @@ Add these in order:
    body, and a JSON body mislabelled `text/plain`, precisely because none of this
    is configurable from the rule. You do not need to update the platform for this.
 
+   Type the body carefully. `kind` must be exactly `press` or `heartbeat` (case
+   and surrounding spaces don't matter, but the spelling does), and no other
+   keys are allowed. Anything else gets a `400` rather than being read as a
+   press — a typo in the *heartbeat* rule would otherwise log a hot flash every
+   hour, forever, and nothing would tell you.
+
 3. Optional: a very brief LED or dim-light acknowledgement, so a press that did
    nothing is distinguishable from a press that worked. Keep it under a second and
    keep it dim; the goal is going back to sleep.
@@ -251,6 +257,7 @@ credential, so anyone who can make the request could already start a flash.
 | Opening the URL in a browser | A browser sends GET and this endpoint only answers POST. A correct secret returns `405` with a hint, so this is a usable check; a wrong one returns `404`. |
 | `404` | Wrong secret, or a typo in the URL. A wrong secret returns 404 rather than 401 so that probing it tells an attacker nothing. |
 | `429` | Rate limited — you're testing faster than a human presses buttons. Wait a minute. |
+| `400` with `invalid_body` | The body has a typo — a misspelled key, or a `kind` that isn't `press` or `heartbeat`. It fails loudly on purpose: reading an unrecognised body as a press would fabricate a flash out of a typo. |
 | `{"action":"debounced"}` | Working as designed. Under 60s since the last press. |
 | Bed cools, nothing logged | The rule never got as far as the HTTP action. Check the hub's **Logs** for the rule: a working press logs three lines — `Event:`, `Triggered:`, `Action: Send POST to:`. No lines at all means the trigger dropped the event, most often a **Physical Switch** trigger fed by a HomeKit integration. See *If the button lives in Apple Home*. |
 | Rule appears under "Triggered apps" but does nothing | Same cause. That column records that the handler was called, not that it acted, so a Physical Switch trigger discarding a digital event still shows up there. |

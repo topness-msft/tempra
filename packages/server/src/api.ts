@@ -441,10 +441,39 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
           return reply.code(404).send({ error: 'not_found' });
         }
 
+        /*
+         * The default belongs to a body that isn't there — not to one that is
+         * there and doesn't validate. Falling back to 'press' on any parse
+         * failure meant a capitalised value or a typo'd key in a hand-edited
+         * Rule Machine field turned the *hourly heartbeat* into an hourly hot
+         * flash that never happened: silent, repeating, and reading back later
+         * as a genuinely terrible night. Strict, so an unknown key is an error
+         * rather than an invented flash. A webhook answering 400 gets noticed
+         * and fixed; a fabricated row does not.
+         *
+         * Case and stray whitespace are still forgiven. Reading "Heartbeat " as
+         * a heartbeat is not guessing between two meanings — it is reading the
+         * one that was plainly written.
+         */
         const body = z
-          .object({ kind: z.enum(['press', 'heartbeat']).default('press') })
+          .object({
+            kind: z
+              .preprocess(
+                (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v),
+                z.enum(['press', 'heartbeat']),
+              )
+              .default('press'),
+          })
+          .strict()
           .safeParse(req.body ?? {});
-        const kind = body.success ? body.data.kind : 'press';
+        if (!body.success) {
+          req.log.warn({ ip: req.ip }, 'bedside webhook body rejected');
+          return reply.code(400).send({
+            error: 'invalid_body',
+            hint: 'Send an empty body, {"kind":"press"} or {"kind":"heartbeat"}.',
+          });
+        }
+        const kind = body.data.kind;
         const now = new Date().toISOString();
 
         if (kind === 'heartbeat') {
