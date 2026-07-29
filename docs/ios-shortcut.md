@@ -185,7 +185,8 @@ and that would log two flashes a few seconds apart.
 
 It doesn't. The server treats a second shortcut request within 60 seconds of the
 last flash as the same flash, and answers with that flash rather than creating a
-new one. There is nothing to set up.
+new one. There is nothing to set up. The same holds if you reach for the bedside
+button as well because Siri gave you nothing back — one flash, not two.
 
 A genuine second flash within sixty seconds would also be swallowed. That is the
 same trade the bedside button has always made, for the same reason: at 3am a

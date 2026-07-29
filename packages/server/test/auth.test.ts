@@ -161,6 +161,54 @@ describe('bedside webhook with a secret configured', () => {
   });
 
   /*
+   * The two blind paths reach for the same flash by different routes: she says
+   * it to Siri, cannot tell whether it worked, and reaches for the button too.
+   * One flash, one intention — so the press has to see the flash Siri made, not
+   * only its own press log.
+   */
+  it('does not log a second flash when the button follows Siri', async () => {
+    const siri = await app.inject({
+      method: 'POST',
+      url: '/api/flashes',
+      headers: { authorization: `Bearer ${API_TOKEN}` },
+      payload: { source: 'shortcut' },
+    });
+    expect(siri.statusCode).toBe(201);
+
+    const press = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      payload: {},
+    });
+    expect(press.json().action).toBe('debounced');
+    expect(press.json().flash.id).toBe(siri.json().id);
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/flashes',
+      headers: { authorization: `Bearer ${API_TOKEN}` },
+    });
+    expect(list.json().flashes).toHaveLength(1);
+  });
+
+  // And the other way round, which the flash-level debounce already covered.
+  it('does not log a second flash when Siri follows the button', async () => {
+    const press = await app.inject({
+      method: 'POST',
+      url: `/hooks/bedside/${BEDSIDE}`,
+      payload: {},
+    });
+    const siri = await app.inject({
+      method: 'POST',
+      url: '/api/flashes',
+      headers: { authorization: `Bearer ${API_TOKEN}` },
+      payload: { source: 'shortcut' },
+    });
+    expect(siri.statusCode).toBe(200);
+    expect(siri.json().id).toBe(press.json().flash.id);
+  });
+
+  /*
    * The button starts the bed cooling; it is never a stop button. The likeliest
    * second press of the night is another flash, and if that ended the first one
    * instead of recording a new one the night's worst hours would vanish.

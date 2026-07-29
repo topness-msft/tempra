@@ -505,10 +505,27 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
           )
           .get() as { at: string } | undefined;
 
-        // A physical button pressed in the dark gets double-tapped, and Hubitat
-        // retries. Neither should show up as two flashes a few seconds apart.
-        if (last && Date.now() - Date.parse(last.at) < DEBOUNCE_MS) {
-          return { ok: true, kind, action: 'debounced', flash: repo.active() };
+        /*
+         * A physical button pressed in the dark gets double-tapped, and Hubitat
+         * retries. Neither should show up as two flashes a few seconds apart.
+         *
+         * The press log alone is not enough, because the two blind paths reach
+         * for the same flash by different routes: she says it to Siri, cannot
+         * tell whether it worked, and reaches for the button as well. That is
+         * one flash and one intention, so any flash recorded in the window
+         * counts here — not just a previous press. The press log is still
+         * consulted because it outlives a deleted flash.
+         *
+         * Debouncing costs her nothing physical: the bed cools from a separate
+         * hub action that never sees this response.
+         */
+        const recent = repo.lastCreated();
+        const lastAt = Math.max(
+          last ? Date.parse(last.at) : -Infinity,
+          recent ? Date.parse(recent.createdAt) : -Infinity,
+        );
+        if (Date.now() - lastAt < DEBOUNCE_MS) {
+          return { ok: true, kind, action: 'debounced', flash: repo.active() ?? recent };
         }
 
         const flash = repo.start({ source: 'homekit' });

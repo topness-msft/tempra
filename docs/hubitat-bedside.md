@@ -179,6 +179,13 @@ double-tapped, and Hubitat itself retries failed requests — neither should sho
 as two flashes a minute apart. You don't need to build any debounce in Rule
 Machine.
 
+The same applies across paths: a press within 60 seconds of a flash logged by
+Siri is treated as the same flash, and so is a Siri request within 60 seconds of
+a press. Not being able to tell whether the first thing worked is exactly why
+you'd reach for the second, so the two shouldn't add up to two flashes. The bed
+still cools either way — that's a separate hub action that never sees this
+response.
+
 ---
 
 ## Rule 2 — the heartbeat (optional, recommended)
@@ -258,7 +265,7 @@ credential, so anyone who can make the request could already start a flash.
 | `404` | Wrong secret, or a typo in the URL. A wrong secret returns 404 rather than 401 so that probing it tells an attacker nothing. |
 | `429` | Rate limited — you're testing faster than a human presses buttons. Wait a minute. |
 | `400` with `invalid_body` | The body has a typo — a misspelled key, or a `kind` that isn't `press` or `heartbeat`. It fails loudly on purpose: reading an unrecognised body as a press would fabricate a flash out of a typo. |
-| `{"action":"debounced"}` | Working as designed. Under 60s since the last press. |
+| `{"action":"debounced"}` | Working as designed. Under 60s since the last flash — from a press, or from Siri. |
 | Bed cools, nothing logged | The rule never got as far as the HTTP action. Check the hub's **Logs** for the rule: a working press logs three lines — `Event:`, `Triggered:`, `Action: Send POST to:`. No lines at all means the trigger dropped the event, most often a **Physical Switch** trigger fed by a HomeKit integration. See *If the button lives in Apple Home*. |
 | Rule appears under "Triggered apps" but does nothing | Same cause. That column records that the handler was called, not that it acted, so a Physical Switch trigger discarding a digital event still shows up there. |
 | Trigger looks right but still nothing | Subscriptions are only rebuilt when the rule is left via **Done**. Check the app status page: **Event Subscriptions** should show `allHandlerX`, not `physicalHandler`. |
