@@ -55,6 +55,33 @@ test('recording a day check-in saves each tap, with no submit button', async ({ 
   ]);
 });
 
+/*
+ * Heart racing is tracked in two vocabularies at once: during a flash, and as a
+ * thing that ran all day on its own. It lives behind "more" on the day screen,
+ * so this checks it is actually reachable there and stores under the same key
+ * the flash tiles use.
+ */
+test('heart racing can be logged for the whole day, not just during a flash', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+
+  // Not on screen until asked for: the first six are what she sees by default.
+  await expect(page.locator('[data-sev="palpitations:2"]')).toHaveCount(0);
+  await page.locator('[data-daymore="1"]').click();
+
+  await page.locator('[data-sev="palpitations:2"]').click();
+  await expect(page.locator('[data-sev="palpitations:2"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  await expect
+    .poll(async () => (await (await page.request.get('/api/days')).json()).days.length)
+    .toBe(1);
+
+  const day = (await (await page.request.get('/api/days')).json()).days[0];
+  expect(day.symptoms).toEqual([{ symptom: 'palpitations', severity: 2 }]);
+});
+
 test('a symptom she never touched is stored as nothing at all', async ({ page }) => {
   await page.locator('[data-tab="day"]').click();
   await page.locator('[data-sev="tinnitus:1"]').click();

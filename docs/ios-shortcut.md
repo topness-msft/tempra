@@ -250,7 +250,8 @@ Severity is `0`–`3`: **0 None, 1 Mild, 2 Moderate, 3 Severe**. Send `null`
 instead of a number to take a symptom back to unrecorded.
 
 The symptom keys are `sleep`, `fatigue`, `brain_fog`, `low_mood`, `tinnitus`,
-`joint_pain`, `anxiety`, `headache`, `dryness`, `skin`. Anything else is a 400.
+`joint_pain`, `palpitations`, `anxiety`, `headache`, `dryness`, `skin`. Anything
+else is a 400.
 
 To ask rather than assume, put a **Choose from Menu** above the request, prompt
 `How bad?`, with three items: **Mild**, **Moderate**, **Severe**. In each branch

@@ -84,6 +84,7 @@ const DAY_ICON: Record<DaySymptom, string> = {
   low_mood: 'i-mood',
   tinnitus: 'i-tinnitus',
   joint_pain: 'i-joint',
+  palpitations: 'i-heart',
   anxiety: 'i-anxiety',
   headache: 'i-headache',
   dryness: 'i-dryness',

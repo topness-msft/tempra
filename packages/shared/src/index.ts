@@ -149,6 +149,7 @@ export const DAY_SYMPTOMS = [
   'low_mood',
   'tinnitus',
   'joint_pain',
+  'palpitations',
   'anxiety',
   'headache',
   'dryness',
@@ -166,6 +167,11 @@ export const DAY_SYMPTOM_LABELS: Record<DaySymptom, string> = {
   low_mood: 'Low mood',
   tinnitus: 'Tinnitus',
   joint_pain: 'Joint pain',
+  // Same wording as the flash tile deliberately: it is the same sensation, and
+  // seeing it named two ways would suggest it is two different things. The key
+  // matches the flash vocabulary for the same reason. What separates them is
+  // timeframe, not meaning — racing during a flash, versus racing all Tuesday.
+  palpitations: 'Heart racing',
   anxiety: 'Anxiety',
   headache: 'Headache',
   dryness: 'Dryness',
