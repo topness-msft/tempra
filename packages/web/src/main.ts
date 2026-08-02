@@ -79,6 +79,10 @@ const PRIMARY_COUNT = 6;
 
 const DAY_ICON: Record<DaySymptom, string> = {
   sleep: 'i-sleep',
+  // A moon for sleep broken, an open eye for sleep never reached. Read together
+  // the pair is legible at a glance, which is what keeps them from being tapped
+  // interchangeably.
+  insomnia: 'i-awake',
   fatigue: 'i-fatigue',
   brain_fog: 'i-fog',
   low_mood: 'i-mood',
@@ -91,8 +95,13 @@ const DAY_ICON: Record<DaySymptom, string> = {
   skin: 'i-skin',
 };
 
-/** Same rule as the flash tiles: six on screen, the rest behind "more". */
-const DAY_PRIMARY_COUNT = 6;
+/*
+ * Seven, where the flash tiles show six. The flash grid is 3x2 and six is what
+ * makes it square; this is a plain vertical list, so the number is free. It is
+ * seven so that both sleep questions are on screen together — see the note on
+ * `insomnia` in the shared vocabulary.
+ */
+const DAY_PRIMARY_COUNT = 7;
 
 // ------------------------------------------------------------------ helpers
 

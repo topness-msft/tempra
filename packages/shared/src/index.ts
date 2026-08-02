@@ -144,6 +144,7 @@ export const updateFlashSchema = z.object({
  */
 export const DAY_SYMPTOMS = [
   'sleep',
+  'insomnia',
   'fatigue',
   'brain_fog',
   'low_mood',
@@ -162,6 +163,18 @@ export const DAY_SYMPTOM_LABELS: Record<DaySymptom, string> = {
   // "Broken sleep", not "Sleep": with a none-to-severe scale, "Sleep: severe"
   // has to mean severely disrupted, and the label is what makes that obvious.
   sleep: 'Broken sleep',
+  /*
+   * Two different bad nights, kept apart on purpose. `sleep` is waking through
+   * the night — what a flash does to her. `insomnia` is lying there unable to
+   * drop off in the first place, which a flash does not explain and which is
+   * treated differently. Collapsing them would hide exactly the distinction a
+   * doctor asks about first.
+   *
+   * They sit next to each other and both are on screen by default. If one were
+   * behind "more" the split would fail quietly: she would tap the visible one
+   * for every bad night and the two columns would say the same thing.
+   */
+  insomnia: "Couldn't get to sleep",
   fatigue: 'Fatigue',
   brain_fog: 'Brain fog',
   low_mood: 'Low mood',

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { DAY_SYMPTOMS } from '@tempra/shared';
 import { openDb, type Db } from '../src/db.js';
 import { DayLogRepo } from '../src/repo.js';
 import { toDaysCsv, toJsonExport } from '../src/export.js';
@@ -145,7 +146,13 @@ describe('exporting day check-ins', () => {
     });
     const csv = toDaysCsv(repo.all());
     const [header, row] = csv.trim().split('\r\n');
-    expect(header?.startsWith('date,sleep,fatigue')).toBe(true);
+    // Derived from the vocabulary rather than spelled out, so adding a symptom
+    // does not need this line edited — but a symptom missing from the export,
+    // or emitted out of order, still fails.
+    expect(header).toBe(['date', ...DAY_SYMPTOMS, 'note'].join(','));
+    // The two sleep questions are separate columns; a reader must be able to
+    // tell a night she never got to sleep from one she kept waking through.
+    expect(header).toContain('sleep,insomnia');
     expect(row).toContain('"Severe"');
     expect(row).toContain('"Mild"');
     expect(row).toContain('"ringing all day"');

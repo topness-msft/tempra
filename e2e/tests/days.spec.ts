@@ -56,6 +56,35 @@ test('recording a day check-in saves each tap, with no submit button', async ({ 
 });
 
 /*
+ * Waking through the night and never getting to sleep are different nights with
+ * different causes, and a flash only explains the first. They are stored apart,
+ * and both are on screen without tapping "more" — if one were hidden she would
+ * tap whichever was visible and the two would end up saying the same thing.
+ */
+test('broken sleep and not getting to sleep are asked separately', async ({ page }) => {
+  await page.locator('[data-tab="day"]').click();
+
+  await expect(page.locator('[data-sev="sleep:3"]')).toBeVisible();
+  await expect(page.locator('[data-sev="insomnia:3"]')).toBeVisible();
+  await expect(page.locator('.dayrow').first()).toContainText('Broken sleep');
+  await expect(page.locator('.dayrow').nth(1)).toContainText("Couldn't get to sleep");
+
+  // A night she fell asleep fine and then kept waking: one of them, not both.
+  await page.locator('[data-sev="sleep:3"]').click();
+  await page.locator('[data-sev="insomnia:0"]').click();
+
+  await expect
+    .poll(async () => (await (await page.request.get('/api/days')).json()).days.length)
+    .toBe(1);
+
+  const day = (await (await page.request.get('/api/days')).json()).days[0];
+  expect(day.symptoms).toEqual([
+    { symptom: 'sleep', severity: 3 },
+    { symptom: 'insomnia', severity: 0 },
+  ]);
+});
+
+/*
  * Heart racing is tracked in two vocabularies at once: during a flash, and as a
  * thing that ran all day on its own. It lives behind "more" on the day screen,
  * so this checks it is actually reachable there and stores under the same key
