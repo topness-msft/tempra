@@ -90,15 +90,21 @@ test('broken sleep and not getting to sleep are asked separately', async ({ page
  * so this checks it is actually reachable there and stores under the same key
  * the flash tiles use.
  */
-test('heart racing can be logged for the whole day, not just during a flash', async ({ page }) => {
+test('heart racing and nausea can be logged for the whole day, behind more', async ({ page }) => {
   await page.locator('[data-tab="day"]').click();
 
-  // Not on screen until asked for: the first six are what she sees by default.
+  // Not on screen until asked for: the first seven are what she sees by default.
   await expect(page.locator('[data-sev="palpitations:2"]')).toHaveCount(0);
+  await expect(page.locator('[data-sev="nausea:1"]')).toHaveCount(0);
   await page.locator('[data-daymore="1"]').click();
 
   await page.locator('[data-sev="palpitations:2"]').click();
+  await page.locator('[data-sev="nausea:1"]').click();
   await expect(page.locator('[data-sev="palpitations:2"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.locator('[data-sev="nausea:1"]')).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -108,7 +114,10 @@ test('heart racing can be logged for the whole day, not just during a flash', as
     .toBe(1);
 
   const day = (await (await page.request.get('/api/days')).json()).days[0];
-  expect(day.symptoms).toEqual([{ symptom: 'palpitations', severity: 2 }]);
+  expect(day.symptoms).toEqual([
+    { symptom: 'palpitations', severity: 2 },
+    { symptom: 'nausea', severity: 1 },
+  ]);
 });
 
 test('a symptom she never touched is stored as nothing at all', async ({ page }) => {

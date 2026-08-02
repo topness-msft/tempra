@@ -251,7 +251,7 @@ instead of a number to take a symptom back to unrecorded.
 
 The symptom keys are `sleep`, `insomnia`, `fatigue`, `brain_fog`, `low_mood`,
 `tinnitus`, `joint_pain`, `palpitations`, `anxiety`, `headache`, `dryness`,
-`skin`. Anything else is a 400.
+`skin`, `nausea`. Anything else is a 400.
 
 `sleep` is waking through the night; `insomnia` is not getting to sleep at all.
 

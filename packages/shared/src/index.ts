@@ -155,6 +155,7 @@ export const DAY_SYMPTOMS = [
   'headache',
   'dryness',
   'skin',
+  'nausea',
 ] as const;
 
 export type DaySymptom = (typeof DAY_SYMPTOMS)[number];
@@ -189,6 +190,7 @@ export const DAY_SYMPTOM_LABELS: Record<DaySymptom, string> = {
   headache: 'Headache',
   dryness: 'Dryness',
   skin: 'Skin crawling',
+  nausea: 'Nausea',
 };
 
 /**

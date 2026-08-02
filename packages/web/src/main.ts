@@ -93,6 +93,7 @@ const DAY_ICON: Record<DaySymptom, string> = {
   headache: 'i-headache',
   dryness: 'i-dryness',
   skin: 'i-skin',
+  nausea: 'i-nausea',
 };
 
 /*
