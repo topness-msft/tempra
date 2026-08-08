@@ -484,3 +484,25 @@ test('tapping a symptom mid-flash does not throw the screen back to the top', as
 
   await expect.poll(async () => scroller.evaluate((el) => el.scrollTop)).toBe(before);
 });
+
+test('logging missed flashes adds backfilled un-timed flashes to history', async ({ page }) => {
+  await page.locator('[data-tab="history"]').click();
+
+  await page.locator('[data-act="open-missed-sheet"]').click();
+  await expect(page.locator('.sheetbar')).toContainText('Backfill entries');
+
+  await page.locator('[data-act="inc-missed"][data-win="night"]').click();
+  await page.locator('[data-act="inc-missed"][data-win="night"]').click();
+  await page.locator('[data-act="inc-missed"][data-win="morning"]').click();
+
+  await page.locator('[data-act="submit-missed"]').click();
+
+  await expect(page.locator('.entry')).toHaveCount(3);
+  const flashes = (await (await page.request.get('/api/flashes')).json()).flashes;
+  expect(flashes).toHaveLength(3);
+  for (const f of flashes) {
+    expect(f.status).toBe('superseded');
+    expect(f.durationMin).toBeNull();
+    expect(f.endedAt).toBeNull();
+  }
+});

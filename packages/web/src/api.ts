@@ -127,6 +127,12 @@ const flushOne = async (op: PendingOp): Promise<boolean> => {
           body: JSON.stringify(op.body),
         });
         break;
+      case 'missed':
+        res = await request('/api/flashes/missed', {
+          method: 'POST',
+          body: JSON.stringify(op.body),
+        });
+        break;
     }
     // A 4xx other than 401 means the server will never accept this operation.
     // Keeping it would block the queue forever, so drop it.
@@ -279,6 +285,50 @@ export const projectState = (base: AppState): AppState => {
             ];
         break;
       }
+      case 'missed': {
+        const body = op.body as {
+          date: string;
+          counts?: { night?: number; morning?: number; afternoon?: number; evening?: number };
+        };
+        const date = body.date;
+        const counts = body.counts ?? {};
+        const windows = [
+          { key: 'night', startHour: 0 },
+          { key: 'morning', startHour: 6 },
+          { key: 'afternoon', startHour: 12 },
+          { key: 'evening', startHour: 18 },
+        ] as const;
+        const pad = (n: number) => String(n).padStart(2, '0');
+
+        for (const w of windows) {
+          const count = counts[w.key] ?? 0;
+          const startH = w.startHour;
+          for (let i = 0; i < count; i++) {
+            const offsetMinInWin = count === 1 ? 180 : Math.round(((i + 1) * 360) / (count + 1));
+            const totalMin = startH * 60 + offsetMinInWin;
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            const iso = new Date(`${date}T${pad(h)}:${pad(m)}:00`).toISOString();
+            recent.push({
+              id: `${op.id}-${w.key}-${i}`,
+              startedAt: iso,
+              endedAt: null,
+              durationMin: null,
+              intensity: null,
+              symptoms: [],
+              note: null,
+              sketch: null,
+              status: 'superseded',
+              source: 'app',
+              createdAt: op.at,
+              updatedAt: op.at,
+              pending: true,
+            });
+          }
+        }
+        recent.sort((a, b) => (a.startedAt < b.startedAt ? 1 : a.startedAt > b.startedAt ? -1 : 0));
+        break;
+      }
     }
   }
 
@@ -374,3 +424,14 @@ export const saveDay = async (
   outbox.dropDay(date);
   return enqueue({ id: newId(), kind: 'day', at: new Date().toISOString(), date, body });
 };
+
+export const logMissedFlashes = async (body: {
+  date: string;
+  counts: { night?: number; morning?: number; afternoon?: number; evening?: number };
+}): Promise<boolean> =>
+  enqueue({
+    id: newId(),
+    kind: 'missed',
+    at: new Date().toISOString(),
+    body,
+  });

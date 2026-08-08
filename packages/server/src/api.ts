@@ -5,6 +5,7 @@ import {
   endFlashSchema,
   localDateSchema,
   patchDayLogSchema,
+  postMissedFlashesSchema,
   putDayLogSchema,
   updateFlashSchema,
   type Flash,
@@ -183,6 +184,15 @@ export const registerApi = async (app: FastifyInstance, opts: ApiOptions): Promi
 
     const flash = repo.start(parsed.data);
     return reply.code(201).send(flash);
+  });
+
+  app.post('/api/flashes/missed', { preHandler: guard }, async (req, reply) => {
+    const parsed = postMissedFlashesSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'invalid_body', detail: parsed.error.issues });
+    }
+    const created = repo.createMissed(parsed.data);
+    return reply.code(201).send({ flashes: created });
   });
 
   app.get('/api/flashes', { preHandler: guard }, async (req, reply) => {

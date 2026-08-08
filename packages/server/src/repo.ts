@@ -122,6 +122,63 @@ export class FlashRepo {
   }
 
   /**
+   * Backfill un-timed missed hot flashes across 6-hour windows for a given local date.
+   * Backfilled entries get status 'superseded' so they do not disturb any running
+   * active flash and hold no duration.
+   */
+  createMissed(
+    input: {
+      date: string;
+      counts: { night?: number; morning?: number; afternoon?: number; evening?: number };
+    },
+    tzOffsetMin: number = 0,
+  ): Flash[] {
+    const windows: { key: keyof typeof input.counts; startHour: number; endHour: number }[] = [
+      { key: 'night', startHour: 0, endHour: 6 },
+      { key: 'morning', startHour: 6, endHour: 12 },
+      { key: 'afternoon', startHour: 12, endHour: 18 },
+      { key: 'evening', startHour: 18, endHour: 24 },
+    ];
+
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    const sign = tzOffsetMin < 0 ? '-' : '+';
+    const absOffset = Math.abs(tzOffsetMin);
+    const offsetStr = `${sign}${pad(Math.floor(absOffset / 60))}:${pad(absOffset % 60)}`;
+
+    const ids: string[] = [];
+    const nowUtc = new Date().toISOString();
+
+    const run = this.db.transaction(() => {
+      const insert = this.db.prepare(
+        `INSERT INTO flashes
+           (id, started_at, tz_offset_min, status, source, intensity, note, client_id, created_at, updated_at)
+         VALUES (?, ?, ?, 'superseded', 'app', NULL, NULL, NULL, ?, ?)`,
+      );
+
+      for (const win of windows) {
+        const count = input.counts[win.key] ?? 0;
+        if (count <= 0) continue;
+
+        const spanMin = 360; // 6 hours
+        for (let i = 0; i < count; i++) {
+          const id = randomUUID();
+          const offsetMinInWin = count === 1 ? 180 : Math.round(((i + 1) * spanMin) / (count + 1));
+          const totalMin = win.startHour * 60 + offsetMinInWin;
+          const h = Math.floor(totalMin / 60);
+          const m = totalMin % 60;
+          const localIso = `${input.date}T${pad(h)}:${pad(m)}:00${offsetStr}`;
+
+          insert.run(id, toUtcIso(localIso), tzOffsetMin, nowUtc, nowUtc);
+          ids.push(id);
+        }
+      }
+    });
+
+    run();
+    return ids.map((id) => this.get(id)).filter((f): f is Flash => f !== null);
+  }
+
+  /**
    * Starting a flash closes any flash already running. The old one becomes
    * `superseded` with no end time and no duration: the app observed that it
    * stopped mattering, not when it stopped.

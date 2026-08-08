@@ -621,3 +621,110 @@ a.btn {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- missed flashes UI ---------- */
+.btn-missed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(179, 63, 102, 0.1);
+  border: 1px solid rgba(179, 63, 102, 0.25);
+  color: var(--berry);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-missed:hover {
+  background: var(--berry);
+  color: #fff;
+}
+
+.window-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.window-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.window-row:first-child {
+  padding-top: 0;
+}
+.window-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.window-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--plum);
+}
+.window-sub {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--plum-soft);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stepper button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--plum);
+  font-size: 18px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.2s;
+}
+.stepper button:hover {
+  border-color: var(--berry);
+  color: var(--berry);
+}
+.stepper button:active {
+  transform: scale(0.92);
+}
+.stepper .count {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--plum);
+  min-width: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.stepper .count.active {
+  color: var(--berry);
+  font-weight: 700;
+}
+
+.hintbox {
+  background: rgba(199, 154, 62, 0.1);
+  border: 1px dashed var(--gold-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--plum-soft);
+  margin-top: 12px;
+}
+.hintbox b {
+  color: var(--plum);
+  font-weight: 600;
+}

@@ -102,6 +102,38 @@ export const createFlashSchema = z.object({
 
 export type CreateFlashInput = z.infer<typeof createFlashSchema>;
 
+export const MISSED_WINDOWS = ['night', 'morning', 'afternoon', 'evening'] as const;
+export type MissedWindow = (typeof MISSED_WINDOWS)[number];
+
+export const MISSED_WINDOW_LABELS: Record<MissedWindow, string> = {
+  night: 'Night (12:00 AM – 6:00 AM)',
+  morning: 'Morning (6:00 AM – 12:00 PM)',
+  afternoon: 'Afternoon (12:00 PM – 6:00 PM)',
+  evening: 'Evening (6:00 PM – 12:00 AM)',
+};
+
+/**
+ * A local calendar date, YYYY-MM-DD. Deliberately not an instant: a day
+ * check-in belongs to the day she lived, not to a moment inside it, and
+ * converting it through UTC would slide it across midnight for half the world.
+ */
+export const localDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .describe('local calendar date, YYYY-MM-DD');
+
+export const postMissedFlashesSchema = z.object({
+  date: localDateSchema,
+  counts: z.object({
+    night: z.number().int().min(0).max(20).default(0),
+    morning: z.number().int().min(0).max(20).default(0),
+    afternoon: z.number().int().min(0).max(20).default(0),
+    evening: z.number().int().min(0).max(20).default(0),
+  }),
+});
+
+export type PostMissedFlashesInput = z.infer<typeof postMissedFlashesSchema>;
+
 /**
  * `endedAt: null` closes a flash without an end time — she slept through it and
  * when it stopped is unknowable. Omitting the field means "ended just now".
@@ -207,16 +239,6 @@ export const severityWord = (severity: number): string =>
 
 export const daySymptomSchema = z.enum(DAY_SYMPTOMS);
 export const severitySchema = z.number().int().min(0).max(3);
-
-/**
- * A local calendar date, YYYY-MM-DD. Deliberately not an instant: a day
- * check-in belongs to the day she lived, not to a moment inside it, and
- * converting it through UTC would slide it across midnight for half the world.
- */
-export const localDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .describe('local calendar date, YYYY-MM-DD');
 
 export const daySymptomEntrySchema = z.object({
   symptom: daySymptomSchema,

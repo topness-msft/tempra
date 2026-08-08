@@ -41,7 +41,8 @@ export type PendingOp =
   | { id: string; kind: 'end'; at: string; flashId: string | null; body: Record<string, unknown> }
   | { id: string; kind: 'update'; at: string; flashId: string; body: Record<string, unknown> }
   | { id: string; kind: 'delete'; at: string; flashId: string }
-  | { id: string; kind: 'day'; at: string; date: string; body: Record<string, unknown> };
+  | { id: string; kind: 'day'; at: string; date: string; body: Record<string, unknown> }
+  | { id: string; kind: 'missed'; at: string; body: Record<string, unknown> };
 
 export const outbox = {
   all: (): PendingOp[] => read<PendingOp[]>(OUTBOX_KEY, []),

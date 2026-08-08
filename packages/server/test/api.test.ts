@@ -300,6 +300,51 @@ describe('day check-ins', () => {
   });
 });
 
+describe('POST /api/flashes/missed', () => {
+  it('creates backfilled un-timed flashes for counts in windows', async () => {
+    const res = await post('/api/flashes/missed', {
+      date: '2026-07-26',
+      counts: { night: 2, morning: 1, afternoon: 0, evening: 0 },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.flashes).toHaveLength(3);
+    for (const f of body.flashes) {
+      expect(f.status).toBe('superseded');
+      expect(f.durationMin).toBeNull();
+      expect(f.endedAt).toBeNull();
+    }
+  });
+
+  it('does not disturb an active running flash when backfilling missed flashes', async () => {
+    const active = await post('/api/flashes', {});
+    expect(active.json().status).toBe('active');
+
+    const missed = await post('/api/flashes/missed', {
+      date: '2026-07-26',
+      counts: { night: 1 },
+    });
+    expect(missed.statusCode).toBe(201);
+
+    const state = await app.inject({ method: 'GET', url: '/api/state' });
+    expect(state.json().active.id).toBe(active.json().id);
+  });
+
+  it('rejects an invalid date or negative counts with 400', async () => {
+    const invalidDate = await post('/api/flashes/missed', {
+      date: 'invalid-date',
+      counts: { night: 1 },
+    });
+    expect(invalidDate.statusCode).toBe(400);
+
+    const invalidCount = await post('/api/flashes/missed', {
+      date: '2026-07-26',
+      counts: { night: -1 },
+    });
+    expect(invalidCount.statusCode).toBe(400);
+  });
+});
+
 describe('bedside webhook', () => {
   it('rejects a wrong secret as 404, revealing nothing', async () => {
     const res = await post('/hooks/bedside/not-the-secret', {});

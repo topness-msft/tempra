@@ -1,6 +1,7 @@
 import {
   DAY_SYMPTOMS,
   DAY_SYMPTOM_LABELS,
+  MISSED_WINDOWS,
   SEVERITY_LABELS,
   SYMPTOMS,
   averageSeverity,
@@ -14,6 +15,7 @@ import {
   type DaySymptom,
   type DaySymptomEntry,
   type Flash,
+  type MissedWindow,
   type Severity,
   type Sketch,
   type Symptom,
@@ -38,6 +40,7 @@ import {
   flushOutbox,
   forgetFlash,
   login,
+  logMissedFlashes,
   pendingCount,
   saveDay,
   startFlash,
@@ -199,6 +202,15 @@ let endNote = '';
 let authed = true;
 let online = navigator.onLine;
 let viewing: Flash | null = null;
+
+let missedSheetOpen = false;
+let missedDate = localDateOf();
+let missedCounts: Record<MissedWindow, number> = {
+  night: 0,
+  morning: 0,
+  afternoon: 0,
+  evening: 0,
+};
 
 /**
  * The day check-in currently on screen. Yesterday and the day before are
@@ -782,6 +794,86 @@ const daybandHtml = (log: PendingDayLog | undefined): string => {
     </div>`;
 };
 
+const missedSheetView = (): string => {
+  const total = Object.values(missedCounts).reduce((a, b) => a + b, 0);
+  const today = localDateOf();
+  const isToday = missedDate === today;
+  const isYesterday = missedDate === shiftLocalDate(today, -1);
+
+  const windows: { key: MissedWindow; title: string; sub: string }[] = [
+    { key: 'night', title: 'Night', sub: '12:00 AM – 6:00 AM' },
+    { key: 'morning', title: 'Morning', sub: '6:00 AM – 12:00 PM' },
+    { key: 'afternoon', title: 'Afternoon', sub: '12:00 PM – 6:00 PM' },
+    { key: 'evening', title: 'Evening', sub: '6:00 PM – 12:00 AM' },
+  ];
+
+  const windowRows = windows
+    .map((w) => {
+      const cnt = missedCounts[w.key] ?? 0;
+      return `
+      <div class="window-row">
+        <div class="window-info">
+          <span class="window-title">${w.title}</span>
+          <span class="window-sub">${w.sub}</span>
+        </div>
+        <div class="stepper">
+          <button type="button" data-act="dec-missed" data-win="${w.key}" aria-label="Decrease ${w.title} count">-</button>
+          <span class="count${cnt > 0 ? ' active' : ''}">${cnt}</span>
+          <button type="button" data-act="inc-missed" data-win="${w.key}" aria-label="Increase ${w.title} count">+</button>
+        </div>
+      </div>`;
+    })
+    .join('');
+
+  return `
+    <div class="stage">
+      <div class="sheetbar">
+        <button class="x" aria-label="Close" data-act="close-missed-sheet">✕</button>
+        <span>Backfill entries</span>
+      </div>
+
+      <div class="scroll">
+        <div class="hd">
+          <p class="kicker">Missed hot flashes</p>
+          <h2 class="h1">How many <em>did you have?</em></h2>
+        </div>
+
+        <div class="daypick" style="margin:0 0 12px">
+          <button type="button" data-act="missed-date-prev" aria-label="Previous day">&lsaquo;</button>
+          <span class="lbl">
+            <span>Logging for</span>
+            <b>${isToday ? 'Today' : isYesterday ? 'Yesterday' : dayFmt.format(fromLocalDate(missedDate))}${
+              isToday || isYesterday ? ` · ${dayFmt.format(fromLocalDate(missedDate))}` : ''
+            }</b>
+          </span>
+          <button type="button" data-act="missed-date-next" aria-label="Next day" ${
+            isToday ? 'disabled' : ''
+          }>&rsaquo;</button>
+        </div>
+
+        <div class="panel warm">
+          <p class="lab">Count by time window <u>6-hour blocks</u></p>
+          ${windowRows}
+          <div class="hintbox">
+            <b>No duration recorded.</b> Flashes logged here are recorded as un-timed events in each 6-hour window.
+          </div>
+        </div>
+      </div>
+
+      <div class="cta">
+        <button class="btn btn-primary" data-act="submit-missed" ${
+          total === 0 ? 'style="opacity:0.5;pointer-events:none;"' : ''
+        }>
+          ${total === 0 ? 'Select flash count' : `Log ${total} missed flash${total === 1 ? '' : 'es'}`}
+        </button>
+        <button class="btn btn-quiet" style="margin-top:6px" data-act="close-missed-sheet">Cancel</button>
+      </div>
+
+      ${tabsHtml()}
+    </div>
+  `;
+};
+
 const historyView = (): string => {
   const flashes = state.recent;
   const today = flashes.filter((f) => dayKey(f.startedAt) === localDateOf());
@@ -843,7 +935,10 @@ const historyView = (): string => {
               : 'A quiet day <em>so far</em>'
           }</h2>
         </div>
-        <p class="statshead">Flashes</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 4px 6px">
+          <p class="statshead" style="margin:0">Flashes</p>
+          <button class="btn-missed" type="button" data-act="open-missed-sheet">+ Log missed flashes</button>
+        </div>
         <div class="stats">
           <div class="stat"><b>${today.length}</b><span>Today</span></div>
           <div class="stat"><b>${avgPeak}</b><span>Avg peak</span></div>
@@ -966,15 +1061,17 @@ const render = (): void => {
   }
 
   const screen =
-    ending && endSubject()
-      ? endView()
-      : tab === 'history'
-        ? historyView()
-        : tab === 'day'
-          ? dayView()
-          : tab === 'export'
-            ? exportView()
-            : logView();
+    missedSheetOpen
+      ? missedSheetView()
+      : ending && endSubject()
+        ? endView()
+        : tab === 'history'
+          ? historyView()
+          : tab === 'day'
+            ? dayView()
+            : tab === 'export'
+              ? exportView()
+              : logView();
 
   /*
    * Rendering replaces the DOM wholesale, so anything that saves as you tap
@@ -1658,6 +1755,56 @@ root.addEventListener('click', (e) => {
       syncDayDraft();
       render();
       break;
+    case 'open-missed-sheet':
+      missedSheetOpen = true;
+      missedDate = localDateOf();
+      missedCounts = { night: 0, morning: 0, afternoon: 0, evening: 0 };
+      render();
+      break;
+    case 'close-missed-sheet':
+      missedSheetOpen = false;
+      render();
+      break;
+    case 'inc-missed': {
+      const win = btn.dataset.win as MissedWindow;
+      if (win && MISSED_WINDOWS.includes(win)) {
+        missedCounts[win] = Math.min(20, (missedCounts[win] ?? 0) + 1);
+        render();
+      }
+      break;
+    }
+    case 'dec-missed': {
+      const win = btn.dataset.win as MissedWindow;
+      if (win && MISSED_WINDOWS.includes(win)) {
+        missedCounts[win] = Math.max(0, (missedCounts[win] ?? 0) - 1);
+        render();
+      }
+      break;
+    }
+    case 'missed-date-prev':
+      missedDate = shiftLocalDate(missedDate, -1);
+      render();
+      break;
+    case 'missed-date-next':
+      if (missedDate < localDateOf()) {
+        missedDate = shiftLocalDate(missedDate, 1);
+        render();
+      }
+      break;
+    case 'submit-missed': {
+      const total = Object.values(missedCounts).reduce((a, b) => a + b, 0);
+      if (total === 0) break;
+      const date = missedDate;
+      const counts = { ...missedCounts };
+      missedSheetOpen = false;
+      render();
+
+      void logMissedFlashes({ date, counts }).then(async (ok) => {
+        toast(ok ? `Logged ${total} missed flash${total === 1 ? '' : 'es'}` : 'Saved — will sync when back online');
+        await refresh();
+      });
+      break;
+    }
   }
 });
 

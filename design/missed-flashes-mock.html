@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tempra — Missed Flashes UI Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FFF9F5;
+  --blush:#FBEDE6;
+  --petal:#F6D8CE;
+  --rose:#E4899B;
+  --berry:#B33F66;
+  --plum:#3A1429;
+  --plum-soft:#5E3A4C;
+  --gold:#8A6A22;
+  --gold-line:rgba(199,154,62,.5);
+  --sage:#4F6B4D;
+  --sage-soft:#E4EDE2;
+  --line:rgba(58,20,41,.14);
+  --shadow:0 30px 70px -34px rgba(58,20,41,.5);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --sans:"IBM Plex Sans","Helvetica Neue",-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;font-family:var(--sans);color:var(--plum);background-color:var(--cream);
+  background-image:
+    radial-gradient(58% 44% at 8% 3%,rgba(228,137,155,.34) 0%,transparent 62%),
+    radial-gradient(48% 40% at 96% 10%,rgba(199,154,62,.22) 0%,transparent 60%),
+    radial-gradient(70% 52% at 80% 94%,rgba(179,63,102,.18) 0%,transparent 66%);
+  background-attachment:fixed;
+  padding:40px 20px;
+}
+.page{max-width:1200px;margin:0 auto}
+.masthead{text-align:center;margin-bottom:36px}
+.wordmark{
+  font-family:var(--mono);font-weight:300;font-size:38px;line-height:1;margin:0 0 10px;
+}
+.wordmark em{
+  font-style:normal;font-weight:600;
+  background:linear-gradient(102deg,var(--berry) 12%,var(--rose) 56%,#C89334 98%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.tagline{font-size:16px;color:var(--plum-soft);margin:0}
+
+.gallery{display:flex;flex-wrap:wrap;justify-content:center;gap:40px;align-items:flex-start}
+.slot{width:413px}
+.caption{display:flex;align-items:baseline;gap:10px;margin:0 0 12px 6px}
+.caption b{font-size:20px;font-weight:600}
+.caption i{font-style:normal;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:700}
+
+.phone{
+  width:413px;height:872px;padding:10px;border-radius:65px;position:relative;
+  background:linear-gradient(150deg,#E6DCD6,#C6B4AC 40%,#EFE7E2 70%,#BFACA4);
+  box-shadow:var(--shadow),inset 0 0 0 1px rgba(255,255,255,.5);
+}
+.screen{
+  width:393px;height:852px;border-radius:55px;overflow:hidden;position:relative;
+  background:radial-gradient(120% 56% at 50% -6%,rgba(246,216,206,.9) 0%,transparent 58%),var(--cream);
+  display:flex;flex-direction:column;
+}
+.island{
+  position:absolute;top:12px;left:50%;translate:-50% 0;width:125px;height:37px;
+  background:#0A0A0A;border-radius:22px;z-index:20;
+}
+.statusbar{
+  height:59px;flex:none;display:flex;justify-content:space-between;align-items:flex-end;
+  padding:0 30px 6px;font-size:16px;font-weight:700;letter-spacing:.02em;position:relative;z-index:21;
+}
+.statusbar .sig{display:flex;gap:5px;align-items:center}
+.statusbar .sig i{display:block;width:6px;border-radius:1px;background:var(--plum)}
+.statusbar .sig i:nth-child(1){height:6px}.statusbar .sig i:nth-child(2){height:9px}
+.statusbar .sig i:nth-child(3){height:12px}.statusbar .sig i:nth-child(4){height:15px;opacity:.35}
+.statusbar .batt{width:26px;height:13px;border:1.6px solid var(--plum);border-radius:4px;position:relative}
+.statusbar .batt::before{content:"";position:absolute;inset:2px;right:8px;background:var(--plum);border-radius:1px}
+
+.stage{flex:1;display:flex;flex-direction:column;padding:0 16px;min-height:0;position:relative}
+.scroll{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding-bottom:8px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.homebar{height:34px;flex:none;display:grid;place-items:center}
+.homebar i{width:140px;height:5px;border-radius:3px;background:var(--plum);opacity:.32;display:block}
+
+.hd{flex:none;margin-bottom:12px}
+.kicker{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:600;margin:0 0 8px}
+.h1{font-family:var(--sans);font-weight:600;font-size:28px;line-height:1.15;letter-spacing:-.025em;margin:0}
+.h1 em{font-style:normal;color:var(--berry);font-weight:600}
+
+.panel{
+  background:rgba(255,255,255,.82);border:1px solid var(--line);border-radius:22px;padding:16px;
+  box-shadow:0 10px 24px -20px rgba(58,20,41,.5);
+}
+.panel.warm{background:linear-gradient(150deg,rgba(246,216,206,.7),rgba(255,255,255,.85))}
+.lab{
+  font-size:14px;font-weight:600;color:var(--plum-soft);margin:0 0 14px;
+  font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.lab u{text-decoration:none;color:var(--berry);font-family:var(--mono);font-size:14px;font-weight:600}
+
+.btn-missed{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;
+  background:rgba(179,63,102,.1);border:1px solid rgba(179,63,102,.25);color:var(--berry);
+  font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer;
+  transition:all .2s ease;
+}
+.btn-missed:hover{background:var(--berry);color:#fff}
+
+.window-row{
+  display:flex;align-items:center;justify-content:space-between;padding:12px 0;
+  border-bottom:1px solid var(--line);
+}
+.window-row:last-child{border-bottom:0;padding-bottom:0}
+.window-row:first-child{padding-top:0}
+.window-info{display:flex;flex-direction:column;gap:3px}
+.window-title{font-size:16px;font-weight:600;color:var(--plum)}
+.window-sub{font-family:var(--mono);font-size:13px;color:var(--plum-soft)}
+
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{
+  width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line);
+  background:rgba(255,255,255,.9);color:var(--plum);font-size:18px;font-weight:700;
+  display:grid;place-items:center;cursor:pointer;line-height:1;transition:all .2s;
+}
+.stepper button:hover{border-color:var(--berry);color:var(--berry)}
+.stepper button:active{transform:scale(.92)}
+.stepper .count{
+  font-family:var(--mono);font-size:20px;font-weight:600;color:var(--plum);
+  min-width:24px;text-align:center;font-variant-numeric:tabular-nums;
+}
+.stepper .count.active{color:var(--berry);font-weight:700}
+
+.hintbox{
+  background:rgba(199,154,62,.1);border:1px dashed var(--gold-line);border-radius:14px;
+  padding:12px 14px;font-size:14px;line-height:1.4;color:var(--plum-soft);margin-top:12px;
+}
+.hintbox b{color:var(--plum);font-weight:600}
+
+.btn{
+  min-height:54px;border:0;border-radius:999px;cursor:pointer;font-family:var(--sans);
+  font-weight:700;font-size:17px;padding:0 22px;
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;width:100%;
+  transition:transform .2s,filter .2s;
+}
+.btn-primary{background:linear-gradient(120deg,var(--berry) 6%,#D4627F 62%,#E08A54 112%);color:#fff;box-shadow:0 16px 30px -14px rgba(179,63,102,.9)}
+.btn-quiet{background:none;border:0;color:var(--plum-soft);font-weight:700;font-size:15px;text-decoration:underline;text-underline-offset:4px}
+
+.tabs{
+  flex:none;display:grid;grid-template-columns:repeat(4,1fr);
+  border-top:1px solid var(--line);padding:10px 0 4px;
+}
+.tabs a{
+  text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:4px;
+  min-height:48px;justify-content:center;color:var(--plum-soft);font-size:12px;font-weight:700;
+}
+.tabs a.on{color:var(--berry)}
+.tabs a svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.sheetbar{
+  flex:none;display:flex;align-items:center;gap:12px;margin:4px 0 14px;
+}
+.sheetbar .x{
+  width:40px;height:40px;flex:none;border:1.5px solid var(--line);border-radius:50%;
+  background:rgba(255,255,255,.9);cursor:pointer;font-size:16px;color:var(--plum-soft);
+  display:grid;place-items:center;line-height:1;
+}
+.sheetbar span{font-size:15px;font-weight:700;color:var(--plum-soft)}
+
+.daypick{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;
+  padding:10px 14px;background:rgba(255,255,255,.8);border:1px solid var(--line);border-radius:18px;
+}
+.daypick button{
+  width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:#fff;
+  font-size:18px;color:var(--plum);cursor:pointer;display:grid;place-items:center;
+}
+.daypick .lbl{text-align:center;display:flex;flex-direction:column}
+.daypick .lbl span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--plum-soft);font-family:var(--mono)}
+.daypick .lbl b{font-size:15px;font-weight:600;color:var(--plum)}
+
+.entry{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.entry:last-child{border-bottom:0}
+.stem{width:4px;height:38px;border-radius:2px;background:linear-gradient(180deg,var(--berry),var(--rose))}
+.when{font-family:var(--mono);font-size:16px;font-weight:500}
+.meta{font-size:14px;color:var(--plum-soft);margin-top:2px}
+.pill{font-size:13px;font-weight:700;padding:6px 11px;border-radius:999px;background:var(--blush);color:var(--berry);border:1px solid rgba(179,63,102,.2)}
+.pill.none{background:transparent;border:1px dashed var(--line);color:var(--plum-soft)}
+.badge-missed{
+  display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;
+  background:rgba(138,106,34,.15);color:var(--gold);font-family:var(--mono);
+  font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-left:6px;
+}
+
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M12 4.5s5.8 6.4 5.8 10a5.8 5.8 0 1 1-11.6 0c0-3.6 5.8-10 5.8-10Z"/></symbol>
+  <symbol id="i-day" viewBox="0 0 24 24"><circle cx="12" cy="11.2" r="4.4"/><path d="M12 2.6v2.2M5.2 5.6l1.6 1.6M18.8 5.6l-1.6 1.6M2.6 11.2h2.2M19.2 11.2h2.2"/><path d="M3 19.4h18"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3.6v11.2M7.8 10.8 12 15l4.2-4.2"/><path d="M4.6 16.4v2.2a1.8 1.8 0 0 0 1.8 1.8h11.2a1.8 1.8 0 0 0 1.8-1.8v-2.2"/></symbol>
+</svg>
+
+<div class="page">
+  <header class="masthead">
+    <h1 class="wordmark">Tempra · <em>Missed Flashes UI</em></h1>
+    <p class="tagline">Log unrecorded hot flashes across 6-hour windows on the History screen with no duration captured.</p>
+  </header>
+
+  <div class="gallery">
+
+    <!-- SLOT 1: History Screen with "+ Add missed flashes" Button -->
+    <div class="slot">
+      <p class="caption"><b>1. History Screen</b><i>Entry point</i></p>
+      <div class="phone">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span>
+            <span style="display:flex;gap:8px;align-items:center"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span>
+          </div>
+
+          <div class="stage">
+            <div class="hd" style="margin-top:6px;display:flex;justify-content:space-between;align-items:flex-end">
+              <div>
+                <p class="kicker">Sunday, 26 July</p>
+                <h2 class="h1">Four today, <em>one at 3am</em></h2>
+              </div>
+            </div>
+
+            <div class="scroll">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <p style="font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:0">Flashes</p>
+                <button class="btn-missed" id="openModalBtn">+ Log missed flashes</button>
+              </div>
+
+              <div class="panel">
+                <p class="lab">Today's entries <u>4 logged</u></p>
+
+                <div class="entry">
+                  <span class="stem"></span>
+                  <div>
+                    <p class="when">3:02 AM</p>
+                    <p class="meta">Intensity 5 · Sweating <span style="font-family:var(--mono);font-size:11px;padding:2px 6px;background:rgba(199,154,62,.18);color:var(--gold);border-radius:999px;margin-left:4px;font-weight:700">BEDSIDE</span></p>
+                  </div>
+                  <span class="pill none">No end</span>
+                </div>
+
+                <div class="entry">
+                  <span class="stem" style="background:var(--rose)"></span>
+                  <div>
+                    <p class="when">9:30 AM <span class="badge-missed">MISSED</span></p>
+                    <p class="meta">Logged for 6:00 AM – 12:00 PM</p>
+                  </div>
+                  <span class="pill none">No end</span>
+                </div>
+
+                <div class="entry">
+                  <span class="stem" style="background:linear-gradient(180deg,var(--sage),var(--sage-soft))"></span>
+                  <div>
+                    <p class="when">1:15 PM → 1:27 PM</p>
+                    <p class="meta">Intensity 4 · Chills</p>
+                  </div>
+                  <span class="pill">12m</span>
+                </div>
+
+                <div class="entry">
+                  <span class="stem"></span>
+                  <div>
+                    <p class="when">8:40 PM → 8:54 PM</p>
+                    <p class="meta">Intensity 7 · Sweating, Mood</p>
+                  </div>
+                  <span class="pill">14m</span>
+                </div>
+              </div>
+            </div>
+
+            <nav class="tabs">
+              <a href="#"><svg><use href="#i-log"/></svg>Log</a>
+              <a href="#"><svg><use href="#i-day"/></svg>Day</a>
+              <a class="on" href="#"><svg><use href="#i-history"/></svg>History</a>
+              <a href="#"><svg><use href="#i-export"/></svg>Export</a>
+            </nav>
+            <div class="homebar"><i></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLOT 2: Missed Flashes Modal Sheet -->
+    <div class="slot">
+      <p class="caption"><b>2. Missed Flashes Sheet</b><i>6-hour time windows</i></p>
+      <div class="phone">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span>
+            <span style="display:flex;gap:8px;align-items:center"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span>
+          </div>
+
+          <div class="stage">
+            <div class="sheetbar">
+              <button class="x" aria-label="Close">✕</button>
+              <span>Backfill entries</span>
+            </div>
+
+            <div class="hd">
+              <p class="kicker">Missed hot flashes</p>
+              <h2 class="h1">How many <em>did you have?</em></h2>
+            </div>
+
+            <div class="daypick">
+              <button type="button">&lsaquo;</button>
+              <div class="lbl">
+                <span>Logging for</span>
+                <b>Sunday, 26 July</b>
+              </div>
+              <button type="button" disabled style="opacity:.3">&rsaquo;</button>
+            </div>
+
+            <div class="scroll">
+              <div class="panel warm">
+                <p class="lab">Count by time window <u>6-hour blocks</u></p>
+
+                <!-- 12am - 6am -->
+                <div class="window-row">
+                  <div class="window-info">
+                    <span class="window-title">Night</span>
+                    <span class="window-sub">12:00 AM – 6:00 AM</span>
+                  </div>
+                  <div class="stepper">
+                    <button type="button" class="btn-dec" data-win="night">-</button>
+                    <span class="count" id="cnt-night">1</span>
+                    <button type="button" class="btn-inc" data-win="night">+</button>
+                  </div>
+                </div>
+
+                <!-- 6am - 12pm -->
+                <div class="window-row">
+                  <div class="window-info">
+                    <span class="window-title">Morning</span>
+                    <span class="window-sub">6:00 AM – 12:00 PM</span>
+                  </div>
+                  <div class="stepper">
+                    <button type="button" class="btn-dec" data-win="morning">-</button>
+                    <span class="count active" id="cnt-morning">2</span>
+                    <button type="button" class="btn-inc" data-win="morning">+</button>
+                  </div>
+                </div>
+
+                <!-- 12pm - 6pm -->
+                <div class="window-row">
+                  <div class="window-info">
+                    <span class="window-title">Afternoon</span>
+                    <span class="window-sub">12:00 PM – 6:00 PM</span>
+                  </div>
+                  <div class="stepper">
+                    <button type="button" class="btn-dec" data-win="afternoon">-</button>
+                    <span class="count" id="cnt-afternoon">0</span>
+                    <button type="button" class="btn-inc" data-win="afternoon">+</button>
+                  </div>
+                </div>
+
+                <!-- 6pm - 12am -->
+                <div class="window-row">
+                  <div class="window-info">
+                    <span class="window-title">Evening</span>
+                    <span class="window-sub">6:00 PM – 12:00 AM</span>
+                  </div>
+                  <div class="stepper">
+                    <button type="button" class="btn-dec" data-win="evening">-</button>
+                    <span class="count" id="cnt-evening">0</span>
+                    <button type="button" class="btn-inc" data-win="evening">+</button>
+                  </div>
+                </div>
+
+                <div class="hintbox">
+                  <b>No duration recorded.</b> Flashes logged here are recorded as un-timed events in each 6-hour window.
+                </div>
+              </div>
+            </div>
+
+            <div style="padding:10px 0 4px">
+              <button class="btn btn-primary" id="saveBtn">Log 3 missed flashes</button>
+              <button class="btn btn-quiet" style="margin-top:6px">Cancel</button>
+            </div>
+
+            <nav class="tabs">
+              <a href="#"><svg><use href="#i-log"/></svg>Log</a>
+              <a href="#"><svg><use href="#i-day"/></svg>Day</a>
+              <a class="on" href="#"><svg><use href="#i-history"/></svg>History</a>
+              <a href="#"><svg><use href="#i-export"/></svg>Export</a>
+            </nav>
+            <div class="homebar"><i></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const counts = { night: 1, morning: 2, afternoon: 0, evening: 0 };
+
+function updateUI() {
+  let total = 0;
+  for (const [k, v] of Object.entries(counts)) {
+    total += v;
+    const el = document.getElementById('cnt-' + k);
+    if (el) {
+      el.textContent = v;
+      el.classList.toggle('active', v > 0);
+    }
+  }
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) {
+    if (total === 0) {
+      saveBtn.textContent = 'Select flash count';
+      saveBtn.style.opacity = '0.5';
+    } else {
+      saveBtn.textContent = `Log ${total} missed flash${total === 1 ? '' : 'es'}`;
+      saveBtn.style.opacity = '1';
+    }
+  }
+}
+
+document.querySelectorAll('.btn-inc').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const win = btn.dataset.win;
+    counts[win] = (counts[win] || 0) + 1;
+    updateUI();
+  });
+});
+
+document.querySelectorAll('.btn-dec').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const win = btn.dataset.win;
+    if (counts[win] > 0) counts[win]--;
+    updateUI();
+  });
+});
+
+updateUI();
+</script>
+</body>
+</html>
